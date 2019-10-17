@@ -1,0 +1,104 @@
+plot_kwargs:
+    scatter:
+        grid: True
+        color: k
+        marker: o
+        s: 15
+        linewidth: 0
+    polar:
+        grid: True
+        marker: o
+        s: 15
+        linewidth: 0
+        alpha: 0.75
+    qq:
+        grid: True
+        color: r
+        marker: o
+        s: 30
+        linewidth: 0.5
+    density_hexbin:
+        grid: True
+        cmap: viridis
+        mincnt: 1
+        gridsize: 20
+    density_contour:
+        grid: True
+        cmap: viridis
+    density_scatter:
+        grid: True
+        cmap: viridis
+        s: 20
+        edgecolor: None
+    pdf_obs:
+        grid: True
+        lw: 2.0
+        ls: dashed
+        color: k
+    pdf_mod:
+        grid: True
+        lw: 1.5
+        ls: solid
+        color: b
+    pdf_hist:
+        bins: 20
+        alpha: 0.3
+        linewidth: 0.5
+        edgecolor: black
+    cdf_obs:
+        color: k
+        lw: 1.5
+        ls: dashed
+    cdf_mod:
+        color: b
+        lw: 1.5
+        ls: solid
+    map:
+        marker: o
+        markeredgecolor: k
+        markerfacecolor: r
+        markersize: 12
+        linestyle: None
+    timeseries_obs:
+        color: k
+        ls: dashed
+        lw: 2
+    timeseries_mod:
+        color: b
+        ls: solid
+        lw: 1
+    timeseries_fill:
+        color: k
+        alpha: 0.3
+        edgecolor: k
+        lw: 1
+    regression:
+        grid: True
+        color: r
+        ls: solid
+        lw: 1
+
+text_kwargs:
+    legend:
+        borderaxespad: 0
+        fontsize: medium
+        prop:
+            weight: normal
+            color: k
+    stats:
+        fontsize: 10
+        color: k
+        weight: normal
+        linespacing: 2.5
+    regression:
+        fontsize: 10
+        color: k
+        weight: normal
+        linespacing: 2.5
+
+to_csv:
+    sep: "\t"
+    float_format: "%0.3f"
+
+tabulate:
+    tablefmt: psql

@@ -1,0 +1,64 @@
+vars:
+    # ocean ----------------------------------------------------------------
+    u:     {long_name: total u current, units: "$ms^{-1}$"}
+    v:     {long_name: total v current, units: "$ms^{-1}$"}
+    uo:    {long_name: residual u current, units: "$ms^{-1}$"} # 40 h butterworth lowpass
+    vo:    {long_name: residual v current, units: "$ms^{-1}$"} # 40 h butterworth lowpass
+    ut:    {long_name: tidal u current, units: "$ms^{-1}$"}
+    vt:    {long_name: tidal v current, units: "$ms^{-1}$"}
+    um:    {long_name: total u depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    vm:    {long_name: total v depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    umo:   {long_name: residual u depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    vmo:   {long_name: residual v depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    spd:   {long_name: total current speed, units: "$ms^{-1}$"}
+    dir:   {long_name: total current direction, units: $^\circ$}
+    spdo:  {long_name: residual current speed, units: "$ms^{-1}$"} # 40 h butterworth lowpass
+    diro:  {long_name: residual current direction, units: $^\circ$} # 40 h butterworth lowpass
+    spdt:  {long_name: tidal current speed, units: "$ms^{-1}$"}
+    dirt:  {long_name: tidal current direction, units: $^\circ$}
+    spdm:  {long_name: total depth-averaged current speed, units: "$ms^{-1}$"}
+    dirm:  {long_name: total depth-averaged current direction, units: $^\circ$}
+    spdmo: {long_name: residual depth-averaged current speed, units: "$ms^{-1}$"}
+    dirmo: {long_name: residual depth-averaged current direction, units: $^\circ$}
+    un:    {long_name: total along-isobath current, units: "$ms^{-1}$"}
+    vn:    {long_name: total cross-isobath current, units: "$ms^{-1}$"}
+    uno:   {long_name: residual along-isobath current, units: "$ms^{-1}$"} # 40 h butterworth lowpass
+    vno:   {long_name: residual cross-isobath current, units: "$ms^{-1}$"} # 40 h butterworth lowpass
+    unt:   {long_name: tidal along-isobath current, units: "$ms^{-1}$"}
+    vnt:   {long_name: tidal cross-isobath current, units: "$ms^{-1}$"}
+    unm:   {long_name: total along-isobath depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    vnm:   {long_name: total cross-isobath depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    unmo:  {long_name: residual along-isobath depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    vnmo:  {long_name: residual cross-isobath depth-averaged current, units: "$ms^{-1}$"} # requires local depth for auto-estimation
+    et:    {long_name: tidal elevation, units: "m"}
+    el:    {long_name: total elevation, units: "m"}
+    ssh:   {long_name: residual elevation, units: "m"}
+    temp:  {long_name: temperature, units: $^\circ C$}
+    salt:  {long_name: temperature, units: 'PSU'}
+
+    # wave ----------------------------------------------------------------------------------------------------------------
+    hs:    {long_name: significant wave height, units: $m$}
+    tp:    {long_name: peak wave period, units: $s$}
+    dpm:   {long_name: peak wave direction, units: $^\circ$}
+
+    # meteo ---------------------------------------------------------------------------------------------------------------
+    wsp:    {long_name: wind speed, units: "$ms^{-1}$"}
+    wdr:    {long_name: wind direction, units: $^\circ$}
+    power:  {long_name: wind power, units: "$kW$"}
+
+plotspecs:
+    # scalar vars ---------------------------------------------------------------------------------------------------------
+    qq:      {color: "#1b9e77", figsize: [8, 8], s: 40, edgecolor: 'none'}
+    scatter: {color: "#1b9e77", figsize: [8, 8], s: 20, alpha: 0.4}
+    density: {figsize: [8, 8]}
+    hexbin:  {figsize: [10, 8]}
+
+    # vector vars ---------------------------------------------------------------------------------------------------------
+    vscatter:  {edgecolor: 'none', alpha: 0.4}
+    hist:      {alpha: 0.5, bins: 30, linewidth: 0.2, normed: True}
+    rose:      {cmap: 'PuBu'}
+
+plotspecs_intercomparisom:
+    qq:         {figsize: [8, 8], s: 40, edgecolor: 'none'}
+    taylor:     {figsize: [8, 8]}
+    timeseries: {figsize: [16, 4], linewidth: 2}
