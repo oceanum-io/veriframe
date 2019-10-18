@@ -30,7 +30,7 @@ def rmsd(x, y, norm=False):
         norm (bool): Normalise MAD by xmean.
 
     """
-    ret = np.mean(np.sqrt((y - x) ** 2))
+    ret = np.sqrt(np.mean((y - x) ** 2))
     if norm:
         ret /= np.mean(x)
     return ret
