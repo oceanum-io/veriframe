@@ -1,6 +1,5 @@
 import os
 import yaml
-from collections import OrderedDict
 import datetime
 import matplotlib.pyplot as plt
 from matplotlib import cm, colors
@@ -31,7 +30,7 @@ except ImportError as err:
 
 from onverify.core.regression import linear_regression
 from onverify.core.taylorDiagram import df2taylor
-from onverify import stats
+from onverify import stats, VARDEF, DEFAULTS
 
 
 # TODO: make depth contour map more efficient
@@ -40,10 +39,6 @@ from onverify import stats
 # TODO: fix labelling in polar scatter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(HERE, "vardef.yml")) as stream:
-    VARDEF = AttrDict(yaml.load(stream, yaml.SafeLoader))
-with open(os.path.join(HERE, "defaults.yml")) as stream:
-    DEFAULTS = AttrDict(yaml.load(stream, yaml.SafeLoader))
 ETOPO = "https://www.ngdc.noaa.gov/thredds/dodsC/global/ETOPO1_Bed_g_gmt4.nc"
 FONTSIZE_LABEL = 14
 
@@ -64,7 +59,7 @@ def merge_dicts(*args):
 
 
 def set_docstring(fun):
-    """format and returns the docstring of function fun."""
+    """format and return the docstring of function fun."""
     docstring_lines = getattr(stats, fun).__doc__.split("\n")
     docstring_lines = [line for line in docstring_lines if "x (array)" not in line and "y (array)" not in line]
     return "\n".join(docstring_lines)
@@ -349,7 +344,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         df = self.copy(deep=True)
         for t in times:
             row = pd.DataFrame(
-                data=OrderedDict((c, np.nan) for c in df.columns), index=[t]
+                data={c: np.nan for c in vf.columns}, index=[t]
             )
             if t not in df.index:
                 df = df.append(row)
@@ -357,7 +352,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
 
     def _stats_frame(self, label):
         """Returns dataframe with stats."""
-        ret = OrderedDict()
+        ret = {}
         for col in self._stats_table:
             if col == "n":
                 ret[col.upper()] = int(self.nsamp)
