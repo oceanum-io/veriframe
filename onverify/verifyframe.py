@@ -50,14 +50,6 @@ warnings.filterwarnings(
 )
 
 
-def merge_dicts(*args):
-    """Merge dictionaries with preference defined by order in list."""
-    ret = args[0].copy()
-    for d in args[1:]:
-        ret.update(d)
-    return ret
-
-
 def set_docstring(fun):
     """format and return the docstring of function fun."""
     docstring_lines = getattr(stats, fun).__doc__.split("\n")
@@ -175,7 +167,7 @@ class AxisVerify:
             - ``kwargs``: options to pass Matplotlib's legend.
 
         """
-        kwargs = merge_dicts(DEFAULTS.text_kwargs["legend"], kwargs)
+        kwargs = {**DEFAULTS.text_kwargs["legend"], **kwargs}
 
         font_prop = kwargs.pop("prop")
         if ax:
@@ -463,7 +455,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
               in the scatter are highlighted.
 
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["scatter"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["scatter"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure()
@@ -504,7 +496,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - axis instance.
 
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["qq"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["qq"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -552,8 +544,8 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             kwargs["ax"] = fig.add_subplot(111)
 
-        scatter_kw = merge_dicts(DEFAULTS.plot_kwargs["scatter"], scatter_kw, kwargs)
-        qq_kw = merge_dicts(DEFAULTS.plot_kwargs["qq"], qq_kw, kwargs)
+        scatter_kw = {**DEFAULTS.plot_kwargs["scatter"], **scatter_kw, **kwargs}
+        qq_kw = {**DEFAULTS.plot_kwargs["qq"], **qq_kw, **kwargs}
 
         self.plot_scatter(showeq=False, **scatter_kw)
         self.plot_qq(increment=increment, showeq=showeq, xlim=xlim, ylim=ylim, **qq_kw)
@@ -589,7 +581,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - The ``colorbar`` argument requires ``c`` to be prescribed.
 
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["polar"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["polar"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -646,7 +638,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         Note:
             - the colours represent the number of datapoints per hexagon.
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["density_hexbin"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["density_hexbin"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -681,7 +673,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - The colours represent the relative density of datapoints.
 
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["density_contour"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["density_contour"], **kwargs}
 
         if "ax" in kwargs:
             ax = kwargs.pop("ax")
@@ -724,7 +716,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - The colours represent the relative density of datapoints.
 
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["density_scatter"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["density_scatter"], **kwargs}
 
         ax = kwargs.pop("ax", None)
         is_grid = kwargs.pop("grid")
@@ -781,11 +773,11 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             ax = fig.add_subplot(111)
 
-        kwargs_mod = merge_dicts(DEFAULTS.plot_kwargs["pdf_mod"], kwargs)
+        kwargs_mod = {**DEFAULTS.plot_kwargs["pdf_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
-        kwargs_obs = merge_dicts(DEFAULTS.plot_kwargs["pdf_obs"], kwargs)
-        kwargs_hist = merge_dicts(DEFAULTS.plot_kwargs["pdf_hist"], kwargs)
+        kwargs_obs = {**DEFAULTS.plot_kwargs["pdf_obs"], **kwargs}
+        kwargs_hist = {**DEFAULTS.plot_kwargs["pdf_hist"], **kwargs}
         kwargs_hist.pop("facecolor", None)
 
         if show_obs:
@@ -852,10 +844,10 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             ax = fig.add_subplot(111)
 
-        kwargs_mod = merge_dicts(DEFAULTS.plot_kwargs["cdf_mod"], kwargs)
+        kwargs_mod = {**DEFAULTS.plot_kwargs["cdf_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
-        kwargs_obs = merge_dicts(DEFAULTS.plot_kwargs["cdf_obs"], kwargs)
+        kwargs_obs = {**DEFAULTS.plot_kwargs["cdf_obs"], **kwargs}
 
         if show_obs:
             x, n = self._get_cdf(self.ref_col)
@@ -900,11 +892,11 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             ax = fig.add_subplot(111)
         is_grid = kwargs.pop("grid", True)
 
-        kwargs_mod = merge_dicts(DEFAULTS.plot_kwargs["timeseries_mod"], kwargs)
+        kwargs_mod = {**DEFAULTS.plot_kwargs["timeseries_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
-        kwargs_obs = merge_dicts(DEFAULTS.plot_kwargs["timeseries_obs"], kwargs)
-        kwargs_fill = merge_dicts(DEFAULTS.plot_kwargs["timeseries_fill"], kwargs)
+        kwargs_obs = {**DEFAULTS.plot_kwargs["timeseries_obs"], **kwargs}
+        kwargs_fill = {**DEFAULTS.plot_kwargs["timeseries_fill"], **kwargs}
 
         for key in ["marker"]:  # kwargs that break fill
             kwargs_fill.pop(key, None)
@@ -1085,7 +1077,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - this method should be called after another plot so axis limit is set.
 
         """
-        kwargs = merge_dicts(DEFAULTS.plot_kwargs["regression"], kwargs)
+        kwargs = {**DEFAULTS.plot_kwargs["regression"], **kwargs}
 
         if "ax" in kwargs:
             ax = kwargs.pop("ax")
@@ -1118,7 +1110,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - axis instance.
 
         """
-        kwargs = merge_dicts(DEFAULTS.text_kwargs["regression"], kwargs)
+        kwargs = {**DEFAULTS.text_kwargs["regression"], **kwargs}
 
         text = ""
         if show_eqn:
@@ -1149,7 +1141,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
               (if supported), e.g., `nbias`, `nrmsd`.
 
         """
-        kwargs = merge_dicts(DEFAULTS.text_kwargs["stats"], kwargs)
+        kwargs = {**DEFAULTS.text_kwargs["stats"], **kwargs}
 
         text = ""
         for stat in self.stats:
@@ -1190,7 +1182,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases.
 
         """
-        kwargs = merge_dicts(DEFAULTS.to_csv, kwargs)
+        kwargs = {**DEFAULTS.to_csv, **kwargs}
 
         ret = self._stats_frame("all")
         if freq is not None:
@@ -1218,7 +1210,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - String with stats summary.
 
         """
-        kwargs = merge_dicts(DEFAULTS.tabulate, kwargs)
+        kwargs = {**DEFAULTS.tabulate, **kwargs}
 
         stats = self.stats_table(freq=freq, outfile=None)
         table = tabulate(stats, headers="keys", **kwargs)
@@ -1336,7 +1328,7 @@ def plot_map(
               either 0<->360 or -180<-->180.
 
     """
-    kwargs = merge_dicts(DEFAULTS.plot_kwargs["map"], kwargs)
+    kwargs = {**DEFAULTS.plot_kwargs["map"], **kwargs}
 
     # Set projection
     if list(bnd):
