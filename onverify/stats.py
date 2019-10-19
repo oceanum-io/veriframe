@@ -32,6 +32,7 @@ def mad(x, y, norm=False, circular=False):
         x (array): x values, usually observations.
         y (array): y values, usually model.
         norm (bool): Normalise MAD by xmean.
+        circular (bool): for circular arrays such as directions.
 
     """
     ret = np.mean(np.abs(_err(x, y, circular)))
@@ -48,6 +49,7 @@ def mrad(x, y, circular=False):
     Args:
         x (array): x values, usually observations.
         y (array): y values, usually model.
+        circular (bool): for circular arrays such as directions.
 
     """
     xmask = np.ma.masked_values(x, 0.)
@@ -63,6 +65,7 @@ def rmsd(x, y, norm=False, circular=False):
         x (array): x values, usually observations.
         y (array): y values, usually model.
         norm (bool): Normalise MAD by xmean.
+        circular (bool): for circular arrays such as directions.
 
     """
     ret = np.sqrt(np.mean(_err(x, y, circular) ** 2))
@@ -80,6 +83,7 @@ def bias(x, y, norm=False, circular=False):
         x (array): x values, usually observations.
         y (array): y values, usually model.
         norm (bool): Normalise MAD by xmean.
+        circular (bool): for circular arrays such as directions.
 
     """
     ret = np.mean(_err(x, y, circular))
@@ -96,6 +100,7 @@ def si(x, y, circular=False):
     Args:
         x (array): x values, usually observations.
         y (array): y values, usually model.
+        circular (bool): for circular arrays such as directions.
 
     """
     diff_values = _err(x, y, circular)
