@@ -31,6 +31,8 @@ except ImportError as err:
 
 from onverify.core.regression import linear_regression
 from onverify.core.taylorDiagram import df2taylor
+from onverify import stats
+
 
 # TODO: make depth contour map more efficient
 # TODO: fix downstream dependencies
@@ -61,7 +63,14 @@ def merge_dicts(*args):
     return ret
 
 
-class AxisVerify(object):
+def set_docstring(fun):
+    """format and returns the docstring of function fun."""
+    docstring_lines = getattr(stats, fun).__doc__.split("\n")
+    docstring_lines = [line for line in docstring_lines if "x (array)" not in line and "y (array)" not in line]
+    return "\n".join(docstring_lines)
+
+
+class AxisVerify:
     """Class for Formatting axis in VerifyFrame."""
 
     def _flatten_list(self, l, a):
@@ -260,7 +269,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         ref_label = kwargs.pop("ref_label", ref_col)
         verify_label = kwargs.pop("verify_label", verify_col)
 
-        super(VerifyFrame, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.ref_col = ref_col
         self.verify_col = verify_col
         self.ref_label = ref_label
@@ -283,43 +292,6 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         # Used for defining stats table
         self._stats_table = ["n", "bias", "rmsd", "si", "mad", "mrad", "nbias", "nrmsd"]
 
-    @property
-    def nsamp(self):
-        """Returns the sample size n."""
-        return self[[self.ref_col, self.verify_col]].dropna().shape[0]
-
-    @property
-    def vmin(self):
-        """Returns the lowest value of the verification columns."""
-        return self[[self.ref_col, self.verify_col]].min().min()
-
-    @property
-    def vmax(self):
-        """Returns the lowest value of the verification columns."""
-        return self[[self.ref_col, self.verify_col]].max().max()
-
-    @property
-    def units(self):
-        """Returns the units of the verification variable."""
-        try:
-            return VARDEF["vars"][self.var]["units"]
-        except KeyError:
-            print(
-                "Variable {} not implemented in {}. Available variables: "
-                "{}".format(
-                    self.var,
-                    os.path.abspath(os.path.join(HERE, "vardef.yml")),
-                    ",".join(VARDEF["vars"].keys()),
-                )
-            )
-            return ""
-
-    @property
-    def coeffs(self):
-        """Returns the coefficients of the linear regression y = ax + b."""
-        coef, __ = linear_regression(self[self.ref_col], self[self.verify_col], order=1)
-        return coef
-
     def __repr__(self):
         return "<{}>\n{}".format(self.__class__.__name__, str(self))
 
@@ -331,7 +303,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             err0 = abs(y % 360 - x % 360)
             errmin = np.minimum(err0, 360 - err0)
             errneg = np.logical_xor(y > x, err0 < 180)
-            signchanger = 1 - 2 * (errneg)
+            signchanger = 1 - 2 * errneg
             err = signchanger * errmin
         else:
             err = y - x
@@ -416,90 +388,76 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
                         )
         return pd.DataFrame(data=list(ret.values()), index=ret.keys(), columns=[label])
 
+    @property
+    def nsamp(self):
+        """Returns the sample size n."""
+        return self[[self.ref_col, self.verify_col]].dropna().shape[0]
+
+    @property
+    def vmin(self):
+        """Returns the lowest value of the verification columns."""
+        return self[[self.ref_col, self.verify_col]].min().min()
+
+    @property
+    def vmax(self):
+        """Returns the lowest value of the verification columns."""
+        return self[[self.ref_col, self.verify_col]].max().max()
+
+    @property
+    def units(self):
+        """Returns the units of the verification variable."""
+        try:
+            return VARDEF["vars"][self.var]["units"]
+        except KeyError:
+            print(
+                "Variable {} not implemented in {}. Available variables: "
+                "{}".format(
+                    self.var,
+                    os.path.abspath(os.path.join(HERE, "vardef.yml")),
+                    ",".join(VARDEF["vars"].keys()),
+                )
+            )
+            return ""
+
+    @property
+    def coeffs(self):
+        """Returns the coefficients of the linear regression y = ax + b."""
+        coef, __ = linear_regression(self[self.ref_col], self[self.verify_col], order=1)
+        return coef
+
     def n(self, *kwargs):
         """The number of collocated samples."""
         return self.nsamp
 
-    def bias(self, normalised=False, **kwargs):
-        """Bias.
+    def bias(self, norm=False, **kwargs):
+        return stats.bias(x=self[self.ref_col], y=self[self.verify_col], norm=norm)
 
-        :math:`Bias = {\\frac 1 N}{\\sum_{i=1}^N {A_i-B_i}}`
+    bias.__doc__ = set_docstring("bias")
 
-        Args:
-            - ``normalised`` (bool): choose it to normalise by mean(obs).
+    def rmsd(self, norm=False, **kwargs):
+        return stats.rmsd(x=self[self.ref_col], y=self[self.verify_col], norm=norm)
 
-        """
-        ret = self._err().mean()
-        if normalised:
-            ret /= self[self.ref_col].mean()
-        return ret
+    rmsd.__doc__ = set_docstring("rmsd")
 
-    def rmsd(self, normalised=False, **kwargs):
-        """Root Mean Square Deviation.
+    def mad(self, norm=False, **kwargs):
+        return stats.mad(x=self[self.ref_col], y=self[self.verify_col], norm=norm)
 
-        :math:`RMSD = \\sqrt{\\frac{1}{N}{\\sum_{i=1}^N {\\left(A_i-B_i \\right)^2}}}`
-
-        Args:
-            - ``normalised`` (bool): choose it to normalise by mean(obs).
-
-        """
-        ret = self._err()
-        if normalised:
-            ret /= self[self.ref_col].mean()
-        return np.sqrt((ret ** 2).mean())
+    mad.__doc__ = set_docstring("mad")
 
     def si(self, **kwargs):
-        """Scatter Index.
+        return stats.si(x=self[self.ref_col], y=self[self.verify_col])
 
-        :math:`SI = {\\frac { \\sqrt { {\\frac 1 N} { \\sum_{i=1}^N {\\left(\\left(A_i-{\\overline A}\\right)-\\left(B_i-{\\overline B}\\right)\\right)^2}}} }{  \overline B} }`
-
-        """
-        return (
-            np.sqrt(((self._err() - self.bias()) ** 2).mean())
-            / self[self.ref_col].mean()
-        )
-
-    def mad(self, **kwargs):
-        """Mean Absolute Deviation.
-
-        :math:`MAD = {\\frac 1 N}{\\sum_{i=1}^N {|A_i-B_i|}}`
-
-        """
-        return self._err().abs().mean()
+    si.__doc__ = set_docstring("si")
 
     def mrad(self, **kwargs):
-        """Mean Relative Absolute Deviation.
+        return stats.mrad(x=self[self.ref_col], y=self[self.verify_col])
 
-        :math:`MRAD = {\\frac 1 N}{\\sum_{i=1}^N {|\\frac {A_i-B_i} {B_i}|}}`
+    mrad.__doc__ = set_docstring("mrad")
 
-        """
-        obs = self[self.ref_col].where(self[self.ref_col] != 0)
-        return (self._err() / obs).abs().mean()
+    def ks(self, **kwargs):
+        return stats.ks(x=self[self.ref_col], y=self[self.verify_col])
 
-    def ks(self, **kargs):
-        """Kolmogorov-Smirnov statistic.
-
-        :math:`D = {\\max(|F1(x)-F2(x)|)}`
-
-        """
-        cdfref = self._get_cdf(self.ref_col)
-        cdfmod = self._get_cdf(self.verify_col)
-
-        isort = np.concatenate((cdfref[0].values, cdfmod[0].values)).argsort()
-        sortedcprobs = np.concatenate((cdfref[1], cdfmod[1]))[
-            isort
-        ]  # sorted by values, the probabilities themselves can be unsorted
-
-        vref = 0
-        vmod = 0
-        D = 0
-        for ind, cprob in zip(isort, sortedcprobs):
-            if ind < self.n():
-                vref = cprob
-            else:
-                vmod = cprob
-            D = max(D, abs(vref - vmod))
-        return D
+    ks.__doc__ = set_docstring("ks")
 
     def plot_scatter(self, showeq=True, colorbar=False, xlim=None, ylim=None, **kwargs):
         """Scatter plot of model vs observations.
@@ -1511,7 +1469,7 @@ class VerifyFrameMulti(VerifyFrame):
             "verify_labels", verify_cols
         )  # Optional in VerifyFrameMulti
 
-        super(VerifyFrameMulti, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.plot_colors = ["b", "r", "g", "c", "y", "m"]
         self.verify_cols = verify_cols
         self.verify_labels = verify_labels
@@ -1538,14 +1496,14 @@ class VerifyFrameMulti(VerifyFrame):
         frames = []
         for self.mod_col in self.verify_cols:
             self.verify_col = self.mod_col
-            tbm = super(VerifyFrameMulti, self).stats_table(**kwargs)
+            tbm = super().stats_table(**kwargs)
             tbm.columns = [self.mod_col]
             frames += [tbm]
         tb = pd.concat(frames, axis=1)
         return tb
 
     def _multi_plot(self, plot_function, **kwargs):
-        method = getattr(super(VerifyFrameMulti, self), plot_function)
+        method = getattr(super(), plot_function)
         ax = kwargs.pop("ax", None)
         loc = kwargs.pop("loc", 4)
         if not ax:
@@ -1563,7 +1521,7 @@ class VerifyFrameMulti(VerifyFrame):
         return ax
 
     def _multi_plot_obs(self, plot_function, **kwargs):
-        method = getattr(super(VerifyFrameMulti, self), plot_function)
+        method = getattr(super(), plot_function)
         ax = kwargs.pop("ax", None)
         loc = kwargs.pop("loc", 4)
         if not ax:
@@ -1732,29 +1690,31 @@ if __name__ == "__main__":
 
     # from verify.core.verifyframe import VerifyFrame, VerifyFrameMulti
     import pandas as pd
+    from onverify.verifyframe import VerifyFrame
 
-    df = pd.read_pickle("../../tests/sample_files/collocs.pkl")
+    df = pd.read_pickle("../tests/sample_files/collocs.pkl")
     df["hs_mod2"] = df["hs_mod"] * 2
+
     vf = VerifyFrame(df, ref_col="hs_obs", verify_col="hs_mod", var="hs")
-    vfm = VerifyFrameMulti(df, ref_col="hs_obs", verify_cols=["hs_mod", "hs_mod2"])
+    # vfm = VerifyFrameMulti(df, ref_col="hs_obs", verify_cols=["hs_mod", "hs_mod2"])
 
-    # import matplotlib.pyplot as plt
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    # vfm.plot_cdf(ax=ax, alpha=0.6)
-    vfm.plot_set()
+    # # import matplotlib.pyplot as plt
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111)
+    # # vfm.plot_cdf(ax=ax, alpha=0.6)
+    # vfm.plot_set()
 
-    # tmp = vfm.iloc[0:100]
-    # print tmp.verify_cols, tmp.verify_labels
-    # import matplotlib.pyplot as plt
-    # plt.figure()
-    # tmp.plot_timeseries()
-    plt.show()
-    # from verify.core.tests.data import create_test_data
-    # df = create_test_data(n=20, nmod=1)
-    # df['obs'] *= 360
-    # df['m1'] *= 360
-    # # vf = VerifyFrame(df, verify_col='m1')
-    # vf = VerifyFrame(df, ref_col='obs', verify_col='m1')
-    # # vf.plot_scatter()
-    # # plt.show()
+    # # tmp = vfm.iloc[0:100]
+    # # print tmp.verify_cols, tmp.verify_labels
+    # # import matplotlib.pyplot as plt
+    # # plt.figure()
+    # # tmp.plot_timeseries()
+    # plt.show()
+    # # from verify.core.tests.data import create_test_data
+    # # df = create_test_data(n=20, nmod=1)
+    # # df['obs'] *= 360
+    # # df['m1'] *= 360
+    # # # vf = VerifyFrame(df, verify_col='m1')
+    # # vf = VerifyFrame(df, ref_col='obs', verify_col='m1')
+    # # # vf.plot_scatter()
+    # # # plt.show()
