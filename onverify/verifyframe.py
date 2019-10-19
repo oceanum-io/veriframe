@@ -214,7 +214,31 @@ class AxisVerify:
 
 
 class VerifyFrame(pd.DataFrame, AxisVerify):
+    """DataFrame for model verification.
 
+    Main Pandas DataFrame kwargs:
+        ``data``: ndarray, dict or DataFrame.
+        ``index``: Index or array-like for index in resulting frame,
+            default is np.arange(n).
+        ``columns``: Index or array-like for column labels in resulting
+            frame, default is np.arange(n).
+
+    Required kwargs:
+        ``ref_col`` (str): name of column with observation values.
+        ``verify_col`` (str): name of column with model values.
+
+    Optional kwargs:
+        ``var`` (str): id of variable to verify, 'hs' by default (supported
+            options need to be defined in vardef.yml).
+        ``circular`` (bool): use True for circular arrays such as directions.
+        ``lat`` (float): latitude of site to validate, ignored if already a column.
+        ``lon`` (float): longitude of site to validate, ignored if already a column.
+        ``ref_label`` (str): used for labelling obs in plots if provided,
+            otherwise constructed from ref_col, var, units.
+        ``verify_label`` (str): used for labelling model in plots if provided,
+            otherwise constructed from verify_col, var, units.
+
+    """
     # These properties will propagate when subclassing
     _metadata = [
         "ref_col",
@@ -233,31 +257,6 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         return VerifyFrame
 
     def __init__(self, *args, **kwargs):
-        """Pandas DataFrame with methods for model verification.
-
-        Main Pandas DataFrame kwargs:
-            - ``data``: ndarray, dict or DataFrame.
-            - ``index``: Index or array-like for index in resulting frame,
-              default is np.arange(n).
-            - ``columns``: Index or array-like for column labels in resulting
-              frame, default is np.arange(n).
-
-        Required kwargs:
-            - ``ref_col`` (str): name of column with observation values.
-            - ``verify_col`` (str): name of column with model values.
-
-        Optional kwargs:
-            - ``var`` (str): id of variable to verify, 'hs' by default (supported
-              options need to be defined in vardef.yml).
-            - ``circular`` (bool): use True for circular arrays such as directions.
-            - ``lat`` (float): latitude of site to validate, ignored if already a column.
-            - ``lon`` (float): longitude of site to validate, ignored if already a column.
-            - ``ref_label`` (str): used for labelling obs in plots if provided,
-              otherwise constructed from ref_col, var, units.
-            - ``verify_label`` (str): used for labelling model in plots if provided,
-              otherwise constructed from verify_col, var, units.
-
-        """
         # Required arguments
         ref_col = kwargs.pop("ref_col", "ref_col has not been assigned")
         verify_col = kwargs.pop("verify_col", "verify_col has not been assigned")
@@ -294,20 +293,6 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
 
     def __repr__(self):
         return "<{}>\n{}".format(self.__class__.__name__, str(self))
-
-    def _err(self):
-        """Differences between model and observations."""
-        x = self[self.ref_col]
-        y = self[self.verify_col]
-        if self.circular:
-            err0 = abs(y % 360 - x % 360)
-            errmin = np.minimum(err0, 360 - err0)
-            errneg = np.logical_xor(y > x, err0 < 180)
-            signchanger = 1 - 2 * errneg
-            err = signchanger * errmin
-        else:
-            err = y - x
-        return err
 
     def _set_axis_label(self, ax):
         """Set xy labels for axis."""

@@ -95,7 +95,7 @@ def bias(x, y, norm=False, circular=False):
 def si(x, y, circular=False):
     """Scatter Index.
 
-    :math:`SI = {\\frac { \\sqrt { {\\frac 1 N} { \\sum_{i=1}^N {\\left(\\left(A_i-{\\overline A}\\right)-\\left(B_i-{\\overline B}\\right)\\right)^2}}} }{  \\overline B} }`
+    :math:`SI = {\\frac { \\sqrt { {\\frac 1 N} { \\sum_{i=1}^N {\\left(\\left(A_i-{\\overline A}\\right)-\\left(B_i-{\\overline B}\\right)\\right)^2}}} }{  {\\overline B} }`
 
     Args:
         x (array): x values, usually observations.
