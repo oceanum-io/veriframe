@@ -52,7 +52,7 @@ def mrad(x, y, circular=False):
         circular (bool): for circular arrays such as directions.
 
     """
-    xmask = np.ma.masked_values(x, 0.)
+    xmask = np.ma.masked_values(x, 0.0)
     return np.mean(np.abs(_err(x, y, circular) / xmask))
 
 

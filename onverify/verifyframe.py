@@ -61,7 +61,11 @@ def merge_dicts(*args):
 def set_docstring(fun):
     """format and return the docstring of function fun."""
     docstring_lines = getattr(stats, fun).__doc__.split("\n")
-    docstring_lines = [line for line in docstring_lines if "x (array)" not in line and "y (array)" not in line]
+    docstring_lines = [
+        line
+        for line in docstring_lines
+        if "x (array)" not in line and "y (array)" not in line
+    ]
     return "\n".join(docstring_lines)
 
 
@@ -234,6 +238,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             otherwise constructed from verify_col, var, units.
 
     """
+
     # These properties will propagate when subclassing
     _metadata = [
         "ref_col",
@@ -343,9 +348,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         """
         df = self.copy(deep=True)
         for t in times:
-            row = pd.DataFrame(
-                data={c: np.nan for c in vf.columns}, index=[t]
-            )
+            row = pd.DataFrame(data={c: np.nan for c in vf.columns}, index=[t])
             if t not in df.index:
                 df = df.append(row)
         return df.sort_index().interpolate()
