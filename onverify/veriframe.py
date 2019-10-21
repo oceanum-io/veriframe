@@ -204,7 +204,7 @@ class AxisVerify:
         return ax
 
 
-class VerifyFrame(pd.DataFrame, AxisVerify):
+class VeriFrame(pd.DataFrame, AxisVerify):
     """DataFrame for model verification.
 
     Main Pandas DataFrame kwargs:
@@ -245,8 +245,8 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
 
     @property
     def _constructor(self):
-        """Ensure sliced VerifyFrame will preserve attributes."""
-        return VerifyFrame
+        """Ensure sliced VeriFrame will preserve attributes."""
+        return VeriFrame
 
     def __init__(self, *args, **kwargs):
         # Required arguments
@@ -977,7 +977,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         for isub in range(nsubs):
             ax = fig.add_subplot(nsubs, 1, isub + 1)
             df = self._fill_times([t1, t2])
-            vf = VerifyFrame(df.loc[t1:t2], **kwargs_self)
+            vf = VeriFrame(df.loc[t1:t2], **kwargs_self)
             axes.append(
                 vf.plot_timeseries(
                     ax=ax,
@@ -1188,7 +1188,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         if freq is not None:
             grouped = self.groupby(pd.Grouper(freq=freq))
             for group, df in grouped:
-                vf = VerifyFrame(
+                vf = VeriFrame(
                     df, ref_col=self.ref_col, verify_col=self.verify_col, var=self.var
                 )
                 ret = pd.concat(
@@ -1234,7 +1234,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
         verify_label=None,
         **kwargs
     ):
-        """Alternate constructor to create a ``VerifyFrame`` from a file.
+        """Alternate constructor to create a ``VeriFrame`` from a file.
 
         Args:
             - ``filename`` (str): name of CSV file to read.
@@ -1254,7 +1254,7 @@ class VerifyFrame(pd.DataFrame, AxisVerify):
             - ``kwargs``: options to pass to `pandas.read_{kind}` method.
 
         Returns:
-            - VerifyFrame instance.
+            - VeriFrame instance.
 
         """
         verify_kw = {}
@@ -1408,7 +1408,7 @@ def plot_map(
     return ax
 
 
-class VerifyFrameMulti(VerifyFrame):
+class VeriFrameMulti(VeriFrame):
 
     # These properties will propagate when subclassing
     _metadata = ["ref_col", "ref_label", "verify_cols", "verify_labels", "plot_colors"]
@@ -1416,7 +1416,7 @@ class VerifyFrameMulti(VerifyFrame):
     @property
     def _constructor(self):
         """Ensure sliced VerifyFrameMulti will preserve attributes."""
-        return VerifyFrameMulti
+        return VeriFrameMulti
 
     def __init__(self, *args, **kwargs):
         """VerifyFrame with methods for verifying multiple models.

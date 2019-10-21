@@ -2,7 +2,7 @@ import os
 import pytest
 import pandas as pd
 
-from onverify.verifyframe import VerifyFrame
+from onverify.veriframe import VeriFrame
 
 FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_files")
 
@@ -14,7 +14,7 @@ class TestStatDataFrame(object):
     def setup_class(self):
         """Read data and define objects."""
         self.df = pd.read_pickle(os.path.join(FILES_DIR, "collocs.pkl"))
-        self.vf = VerifyFrame(self.df, ref_col="hs_obs", verify_col="hs_mod")
+        self.vf = VeriFrame(self.df, ref_col="hs_obs", verify_col="hs_mod")
         self.stats = {
             "bias": 0.101,
             "nbias": 0.054,
