@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 import logging
 import matplotlib.pyplot as plt
-from onverify.core.verifyframe import VerifyFrame, VerifyFrameMulti
+from onverify.core.veriframe import VeriFrame, VeriFrameMulti
 from onverify.core.taylorDiagram import df2taylor
 from create_test_data import create_test_data, create_test_data_sin
 
@@ -25,7 +25,7 @@ class TestVerifySingle(unittest.TestCase):
         # At least plot_density_scatter KDE seems to need a bit of noise...
         self.df['m1'] = self.df['m1'] + np.random.rand(self.df.shape[0]) * 0.01 - 0.005
         self.df['obs'] = self.df['obs'] + np.random.rand(self.df.shape[0]) * 0.01 - 0.005
-        self.v = VerifyFrame(self.df[['obs','m1']],
+        self.v = VeriFrame(self.df[['obs','m1']],
                     lat=-50, lon=100,
                     ref_col='obs',
                     verify_col='m1',
@@ -116,7 +116,7 @@ class TestVerifyMulti(unittest.TestCase):
         # At least plot_density_scatter KDE seems to need a bit of noise...
         self.df['m1'] = self.df['m1'] + np.random.rand(self.df.shape[0]) * 0.01 - 0.005
         self.df['obs'] = self.df['obs'] + np.random.rand(self.df.shape[0]) * 0.01 - 0.005
-        self.v = VerifyFrameMulti(self.df[['obs','m1', 'm2', 'm3']],
+        self.v = VeriFrameMulti(self.df[['obs','m1', 'm2', 'm3']],
                 lat=-50, lon=100, var='tp',
                 ref_col='obs',
                 verify_cols=['m1','m2', 'm3'],

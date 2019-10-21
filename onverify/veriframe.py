@@ -62,7 +62,7 @@ def set_docstring(fun):
 
 
 class AxisVerify:
-    """Class for Formatting axis in VerifyFrame."""
+    """Class for Formatting axis in VeriFrame."""
 
     def _flatten_list(self, l, a):
         """Flatten list of lists."""
@@ -1415,11 +1415,11 @@ class VeriFrameMulti(VeriFrame):
 
     @property
     def _constructor(self):
-        """Ensure sliced VerifyFrameMulti will preserve attributes."""
+        """Ensure sliced VeriFrameMulti will preserve attributes."""
         return VeriFrameMulti
 
     def __init__(self, *args, **kwargs):
-        """VerifyFrame with methods for verifying multiple models.
+        """VeriFrame with methods for verifying multiple models.
 
         Arguments are identical to VeriFrame, except for the following:
 
@@ -1437,12 +1437,12 @@ class VeriFrameMulti(VeriFrame):
         )  # Required in both classes
         verify_cols = kwargs.pop(
             "verify_cols", ["verify_cols has not been assigned"]
-        )  # Required in VerifyFrameMulti
-        kwargs.update({"verify_col": verify_cols[0]})  # Required in VerifyFrame
+        )  # Required in VeriFrameMulti
+        kwargs.update({"verify_col": verify_cols[0]})  # Required in VeriFrame
         # Optional arguments
         verify_labels = kwargs.pop(
             "verify_labels", verify_cols
-        )  # Optional in VerifyFrameMulti
+        )  # Optional in VeriFrameMulti
 
         super().__init__(*args, **kwargs)
         self.plot_colors = ["b", "r", "g", "c", "y", "m"]
@@ -1663,15 +1663,15 @@ class VeriFrameMulti(VeriFrame):
 
 if __name__ == "__main__":
 
-    # from verify.core.verifyframe import VerifyFrame, VerifyFrameMulti
+    # from verify.core.veriframe import VeriFrame, VeriFrameMulti
     import pandas as pd
-    from onverify.verifyframe import VerifyFrame
+    from onverify.veriframe import VeriFrame
 
     df = pd.read_pickle("../tests/sample_files/collocs.pkl")
     df["hs_mod2"] = df["hs_mod"] * 2
 
-    vf = VerifyFrame(df, ref_col="hs_obs", verify_col="hs_mod", var="hs")
-    # vfm = VerifyFrameMulti(df, ref_col="hs_obs", verify_cols=["hs_mod", "hs_mod2"])
+    vf = VeriFrame(df, ref_col="hs_obs", verify_col="hs_mod", var="hs")
+    # vfm = VeriFrameMulti(df, ref_col="hs_obs", verify_cols=["hs_mod", "hs_mod2"])
 
     # # import matplotlib.pyplot as plt
     # fig = plt.figure()
@@ -1689,7 +1689,7 @@ if __name__ == "__main__":
     # # df = create_test_data(n=20, nmod=1)
     # # df['obs'] *= 360
     # # df['m1'] *= 360
-    # # # vf = VerifyFrame(df, verify_col='m1')
-    # # vf = VerifyFrame(df, ref_col='obs', verify_col='m1')
+    # # # vf = VeriFrame(df, verify_col='m1')
+    # # vf = VeriFrame(df, ref_col='obs', verify_col='m1')
     # # # vf.plot_scatter()
     # # # plt.show()

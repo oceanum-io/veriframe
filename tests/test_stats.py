@@ -8,7 +8,7 @@ FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_fil
 
 
 class TestStatDataFrame(object):
-    """Test stats methods from VerifyFrame."""
+    """Test stats methods from VeriFrame."""
 
     @classmethod
     def setup_class(self):

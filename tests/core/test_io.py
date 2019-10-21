@@ -3,7 +3,7 @@ import pytest
 import datetime
 import pandas as pd
 
-from onverify.core.verifyframe import VerifyFrame
+from onverify.core.veriframe import VeriFrame
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILES_DIR = os.path.join(HERE, '../sample_files')
@@ -21,7 +21,7 @@ class TestStatDataFrame(object):
         self.var = 'hs'
 
     def test_read_pickle(self):
-        vf = VerifyFrame.from_file(filename=self.pickle_file,
+        vf = VeriFrame.from_file(filename=self.pickle_file,
                                    kind='pickle',
                                    ref_col=self.ref_col,
                                    verify_col=self.verify_col,
@@ -30,7 +30,7 @@ class TestStatDataFrame(object):
 
     def test_read_csv(self):
         dparser = lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
-        vf = VerifyFrame.from_file(filename=self.csv_file,
+        vf = VeriFrame.from_file(filename=self.csv_file,
                                    kind='csv',
                                    ref_col=self.ref_col,
                                    verify_col=self.verify_col,

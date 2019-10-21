@@ -2,7 +2,7 @@ import os
 import pytest
 import pandas as pd
 
-from onverify.core.verifyframe import VerifyFrame, VerifyFrameMulti
+from onverify.core.veriframe import VeriFrame, VeriFrameMulti
 
 FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          '../sample_files')
@@ -15,18 +15,18 @@ class TestStatDataFrame(object):
         """Read data and define objects."""
         self.df = pd.read_pickle(os.path.join(FILES_DIR, 'collocs.pkl'))
         self.df['hs_mod2'] = self.df['hs_mod'] * 2
-        self.vf = VerifyFrame(self.df, ref_col='hs_obs', verify_col='hs_mod')
-        self.vfm = VerifyFrameMulti(self.df,
+        self.vf = VeriFrame(self.df, ref_col='hs_obs', verify_col='hs_mod')
+        self.vfm = VeriFrameMulti(self.df,
                                     ref_col='hs_obs',
                                     verify_cols=['hs_mod', 'hs_mod2'])
 
-    def test_type_verifyframe(self):
+    def test_type_veriframe(self):
         sliced = self.vf.iloc[0:10]
-        assert isinstance(sliced, VerifyFrame)
+        assert isinstance(sliced, VeriFrame)
 
-    def test_type_verifyframemulti(self):
+    def test_type_veriframemulti(self):
         sliced = self.vfm.iloc[0:10]
-        assert isinstance(sliced, VerifyFrameMulti)
+        assert isinstance(sliced, VeriFrameMulti)
 
     @pytest.mark.parametrize('attr_name', [
         'ref_col',
@@ -60,7 +60,7 @@ class TestStatDataFrame(object):
         'legend',
         'add_text',
     ])
-    def test_slice_verifyframe(self, attr_name):
+    def test_slice_veriframe(self, attr_name):
         sliced = self.vf.iloc[0:10]
         assert getattr(sliced, attr_name, None) is not None
 
@@ -96,7 +96,7 @@ class TestStatDataFrame(object):
         'legend',
         'add_text',
     ])
-    def test_slice_verifyframemulti(self, attr_name):
+    def test_slice_veriframemulti(self, attr_name):
         sliced = self.vfm.iloc[0:10]
         assert getattr(sliced, attr_name, None) is not None
 
