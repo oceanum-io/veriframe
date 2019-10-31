@@ -1309,11 +1309,11 @@ class VerifyGBQ(Verify):
             self.df.reset_index()[GBQFIELDS], table, project_id=project_id
         )
 
-    def loadColocs(self, dset="oceanum-prod.cersat.data"):
-        obsq = GBQAlt(dset=dset, project_id=self.project_id)
-        obsq.get(self.t0, self.t1)
-        self.obs = obsq.df
-        self.obs.set_index("time", inplace=True)
+    def loadColocs(self, start=None, end=None, dset="wave.test"):
+        obsq = GBQAlt(dset=dset, variables=GBQFIELDS, project_id=self.project_id)
+        obsq.get(start, end)
+        self.df = obsq.df
+        self.df.set_index("time", inplace=True)
         self.obsname = "obs"
         self.modname = "model"
 

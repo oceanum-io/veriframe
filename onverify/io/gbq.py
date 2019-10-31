@@ -12,6 +12,7 @@ def dt_to_sql(dt):
 def sql_to_dt(sql):
     return datetime.strptime(sql, sqltimefmt)
 
+
 def retrieve(sql, project_id="oceanum-dev"):
     """
     Retrieve data from bigquery database and return as pandas dataframe
@@ -23,6 +24,7 @@ def retrieve(sql, project_id="oceanum-dev"):
     client = bigquery.Client()
     df = client.query(sql, project=project_id).to_dataframe()
     return df
+
 
 class GBQAlt:
     """Class for performing altimeter data retrievals"""
@@ -38,18 +40,25 @@ class GBQAlt:
         self.project_id = project_id
 
     def contruct_sql(self, start, end):
-        sql = """
-            SELECT {}
-            FROM `{}`
-            WHERE time BETWEEN "{}" AND "{}"
-            ORDER by time asc
-        """.format(
-            ", ".join(self.variables), self.dset, dt_to_sql(start), dt_to_sql(end)
-        )
+        if not start:
+            sql = """
+                SELECT {}
+                FROM `{}`
+                ORDER by time asc
+            """.format(
+                ", ".join(self.variables), self.dset
+            )
+        else:
+            sql = """
+                SELECT {}
+                FROM `{}`
+                WHERE time BETWEEN "{}" AND "{}"
+                ORDER by time asc
+            """.format(
+                ", ".join(self.variables), self.dset, dt_to_sql(start), dt_to_sql(end)
+            )
         return sql
 
-    def get(self, start, end):
+    def get(self, start=None, end=None):
         sql = self.contruct_sql(start, end)
         self.df = retrieve(sql, project_id=self.project_id)
-
-

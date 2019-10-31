@@ -16,3 +16,12 @@ def test_gbq():
     v.saveColocs('wave.test', project_id='oceanum-dev')
     # plt.show()
 
+def test_plot():
+    dset="wave.test"
+    project_id="oceanum-dev",
+    v = VerifyGBQ(project_id=project_id)
+    v.loadColocs(dset=dset)
+    v.calcGriddedStats(2)
+    v.plotGriddedStats('bias', vmin=-0.5, vmax=0.5, clon=0,
+                        clat=-90, proj='Orthographic')
+    plt.show()
