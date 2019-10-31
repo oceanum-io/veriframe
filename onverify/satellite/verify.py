@@ -27,6 +27,8 @@ from onverify.io.gbq import GBQAlt
 
 plt.rcParams["image.cmap"] = "viridis"
 
+GBQFIELDS = ["time", "lat", "lon", "obs", "model"]
+
 
 class CustomFormatter(
     argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
@@ -752,14 +754,29 @@ class Verify(VerifyBase):
         self.logger.info("    Writing colocs to %s" % outfile)
         self.df.to_pickle(outfile)
 
-    def colocsToGBQ(self, table, project_id="oceanum-dev"):
-        import pandas_gbq
+    def loadColocs(self, fglob, subset=None):
+        if isinstance(fglob, list):
+            filelist = fglob
+        else:
+            filelist = sorted(glob(fglob))
+        self.logger.info("Loading colocs %s \n" % "\n\t".join(filelist))
 
-        pandas_gbq.to_gbq(
-            self.df.reset_index()[["time", "lat", "lon", "obs", "model"]],
-            table,
-            project_id=project_id,
-        )
+        self.df = None
+        for fname in filelist:
+            print(" Reading %s" % fname)
+            if self.df is None:
+                if subset is None:
+                    self.df = pd.read_pickle(fname)
+                else:
+                    self.df = pd.read_pickle(fname)[subset]
+            else:
+                if subset is None:
+                    self.df = self.df.append(pd.read_pickle(fname))
+                else:
+                    self.df = self.df.append(pd.read_pickle(fname)[subset])
+
+        self.obsname = "obs"
+        self.modname = "model"
 
     def loadColocs(self, fglob, subset=None):
         if isinstance(fglob, list):
@@ -1284,6 +1301,21 @@ class VerifyGBQ(Verify):
         if self.model[self.lonname].min() >= 0 and self.model[self.lonname].max() > 180:
             self.logger.debug("Correcting obs lons to 0-360 range")
             self.obs.lon %= 360
+
+    def saveColocs(self, table, project_id="oceanum-dev"):
+        import pandas_gbq
+
+        pandas_gbq.to_gbq(
+            self.df.reset_index()[GBQFIELDS], table, project_id=project_id
+        )
+
+    def loadColocs(self, dset="oceanum-prod.cersat.data"):
+        obsq = GBQAlt(dset=dset, project_id=self.project_id)
+        obsq.get(self.t0, self.t1)
+        self.obs = obsq.df
+        self.obs.set_index("time", inplace=True)
+        self.obsname = "obs"
+        self.modname = "model"
 
 
 def calcColocsFile(
