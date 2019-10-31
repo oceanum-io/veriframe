@@ -1,24 +1,28 @@
-import xarray as xr
+import argparse
 import json
-import pandas as pd
 import logging
-from datetime import datetime, timedelta
 import os
-from scipy.ndimage import map_coordinates
-import numpy as np
-import numpy.ma as ma
-from multiprocessing import Pool
+import resource
+from datetime import datetime, timedelta
 from functools import partial
-import matplotlib.pyplot as plt
+from glob import glob
+from multiprocessing import Pool
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-import argparse
-from glob import glob
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.ma as ma
+import pandas as pd
+import xarray as xr
+from cartopy.mpl.gridliner import LATITUDE_FORMATTER, LONGITUDE_FORMATTER
+from scipy.ndimage import map_coordinates
 from scipy.stats import mstats
-import resource
-from verify.core.veriframe import
-from verify.core.stats import bias, si, rmsd
+
+from onverify.site_tom import Verify as VerifyBase
+from onverify.stats import bias, rmsd, si
+from onverify.io.gbq import GBQAlt
+
 #from verify.core.calc_nrt_pairs import load_nrt
 
 plt.rcParams['image.cmap'] = 'viridis'
@@ -354,7 +358,7 @@ class Verify(VerifyBase):
 
         timeindex = []
         for ttmp in pd.to_datetime(self.obs.index):
-            timedelta = ttmp - self.t0
+            timedelta = ttmp.tz_localize(None) - self.t0
             timeindex.append(self._timedelta_to_index(timedelta))
 
         return latindex, lonindex, np.array(timeindex, dtype=float)
@@ -940,6 +944,54 @@ def calcColocs(ncglob, cla=Verify, outdir='./out', overwrite=False,
                            dropna=dropna, plot_kwargs=plot_kwargs, **kwargs)
         p.map(func, flist)
 
+class VerifyGBQ(Verify):
+
+    def __init__(self,
+                 logger=logging,
+                 obsdset="oceanum-prod.cersat.data",
+                 project_id="oceanum-prod",
+                 test=False,
+                 modvar=None,
+                 latmin=None,
+                 latmax=None,
+                 lonmin=None,
+                 lonmax=None,
+                 **kwargs
+                 ):
+        super().__init__(logger=logging,
+                        obsregex=obsdset,
+                        test=test,
+                        modvar=modvar,
+                        latmin=latmin,
+                        latmax=latmax,
+                        lonmin=lonmin,
+                        lonmax=lonmax,
+                        **kwargs
+                        )
+        self.project_id = project_id
+
+    def loadObs(self, interval=timedelta(hours=24), dropvars=None, ):
+        self.logger.info("Loading observations")
+
+        obsnames = {'hs': 'swh', 'wndsp': 'wind_speed_alt_calibrated'}
+        obsvar = obsnames[self.modvar]
+        obsq = GBQAlt(dset=self.obsregex, project_id=self.project_id)
+        obsq.get(self.t0, self.t1)
+        self.obs = obsq.df
+        self.obs.set_index('time', inplace=True)
+
+        # Select on model area - TODO implement in query
+        # self.obs = obs.loc[(obs.lat > self.modlatmin) &
+                           # (obs.lat < self.modlatmax) &
+                           # is_lons_in(obs.lon, self.modlonmin, self.modlonmax)]
+        # self.obs.set_index('time',inplace=True)
+        self.obs.rename(columns={obsvar: 'obs'}, inplace=True)
+
+        # Ensure obs is same range as model, but only if model has not been converted yet
+        if self.model[self.lonname].min() >= 0 and self.model[self.lonname].max() > 180:
+            self.logger.debug("Correcting obs lons to 0-360 range")
+            self.obs.lon %= 360
+
 def calcColocsFile(fname, cla=Verify, outdir='./out', overwrite=False,
                dropna=True, plot_kwargs=None, **kwargs):
     #try:
@@ -1026,5 +1078,4 @@ To test command line interface, try:
 
     python2 altverify.py /net/datastor1/data/wave/med/ww3_0.1_st4/med20001001_00z.nc
 """
-
 
