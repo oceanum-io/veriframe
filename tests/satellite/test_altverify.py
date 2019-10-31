@@ -9,9 +9,10 @@ def test_gbq():
     v.loadObs()
     v.interpModel()
     v.createColocs()
-    v.calcGriddedStats(2)
-    # v.saveGriddedStats('out.nc')
-    v.plotGriddedStats('bias', vmin=-0.5, vmax=0.5, clon=0,
-                       clat=-90, proj='Orthographic')
-    plt.show()
+    # v.calcGriddedStats(2)
+    # # v.saveGriddedStats('out.nc')
+    # v.plotGriddedStats('bias', vmin=-0.5, vmax=0.5, clon=0,
+                       # clat=-90, proj='Orthographic')
+    v.colocsToGBQ('wave.test', project_id='oceanum-dev')
+    # plt.show()
 
