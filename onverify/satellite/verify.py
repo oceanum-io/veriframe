@@ -22,6 +22,8 @@ from scipy.stats import mstats
 from onverify.site_base import Verify as VerifyBase
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
+from onverify.io.gcs import open_netcdf
+from oncore.dataio import get
 
 # from verify.core.calc_nrt_pairs import load_nrt
 
@@ -262,10 +264,12 @@ class Verify(VerifyBase):
         if self.test:
             self.logger.info(" Using first 10 timesteps only")
             model = model.isel(time=slice(None, 10))
-
         dsettime = model.time.to_pandas()
         inodup = np.where(dsettime.duplicated() == False)[0]
         self.model = model.isel(time=inodup)
+        self._check_model_data()
+
+    def _check_model_data(self):
 
         # Different in WW3 and SWAN
         if "latitude" in self.model.dims.keys():
@@ -296,6 +300,7 @@ class Verify(VerifyBase):
         )
 
         # Determine relevant data attributes
+        dsettime = self.model.time.to_pandas()
         self.t0 = dsettime[0]
         self.t1 = dsettime[-1]
         self.tstep = dsettime[1] - self.t0
@@ -1316,6 +1321,11 @@ class VerifyGBQ(Verify):
         self.df.set_index("time", inplace=True)
         self.obsname = "obs"
         self.modname = "model"
+
+    def loadModel(self, fname):
+        self.logger.info("Loading model data {}".format(fname))
+        local = get(fname, "./")
+        super().loadModel(local)
 
 
 def calcColocsFile(

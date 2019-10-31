@@ -25,3 +25,14 @@ def test_plot():
     v.plotGriddedStats('bias', vmin=-0.5, vmax=0.5, clon=0,
                         clat=-90, proj='Orthographic')
     plt.show()
+
+def test_full():
+    dset="oceanum-prod.cersat.data"
+    project_id="oceanum-prod",
+    v = VerifyGBQ(obsdset=dset, project_id=project_id)
+    v.loadModel('gs://oceanum-data-dev/ww3/glob3_era5/grids/glob3-20111201T00.nc')
+    v.loadObs()
+    v.interpModel()
+    v.createColocs()
+    v.saveColocs('wave.test2', project_id='oceanum-dev')
+    # plt.show()

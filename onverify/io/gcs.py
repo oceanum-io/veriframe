@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 
 
-def open_netcdf(fname):
+def open_netcdf(fname, **kwargs):
     """
     Opens local or remote netcdf file and returns an xarray.Dataset
 
@@ -18,7 +18,7 @@ def open_netcdf(fname):
     """
     fs = gcsfs.GCSFileSystem()
     fileObj = fs.open(fname)
-    ds = xr.open_dataset(fileObj, engine='h5netcdf')
+    ds = xr.open_dataset(fileObj, engine='h5netcdf', **kwargs)
     return ds
 
 # ds = open_netcdf('gs://oceanum-data-dev/ww3/glob3_era5/grids/glob3-20111201T00.nc')
