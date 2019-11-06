@@ -11,8 +11,9 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
  # Set required environment variables
 ENV REPOS="/source"
 
-COPY setup.py README.rst HISTORY.rst $REPOS/onverify/
+COPY setup.py requirements.txt README.rst HISTORY.rst $REPOS/onverify/
 COPY onverify $REPOS/onverify/onverify
 COPY tests $REPOS/onverify/tests
 RUN cd $REPOS/onverify &&\
+	pip3 install -r requirements.txt --no-cache-dir
 	pip3 install -e . --no-cache-dir

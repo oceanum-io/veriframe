@@ -1,0 +1,1 @@
+git+ssh://git@gitlab.com/oceanum/oncore # This will need to be tagged at some point
