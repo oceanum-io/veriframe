@@ -26,6 +26,7 @@ requirements = [
     "gcsfs",
     "pandas-gbq",
     "cartopy"
+    "h5netcdf"
 ]
 
 setup_requirements = ["pytest-runner"]
