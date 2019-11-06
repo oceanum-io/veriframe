@@ -1,0 +1,10 @@
+version: '2'
+
+services:
+
+  onverify:
+    image: registry.gitlab.com/oceanum/onverify/onverify:$CI_COMMIT_REF_NAME
+    build:
+      context: ./
+      dockerfile: Dockerfile
+
