@@ -26,6 +26,7 @@ requirements = [
     "gcsfs",
     "pandas-gbq",
     "cartopy",
+    "netcdf4",
     "h5netcdf"
 ]
 
