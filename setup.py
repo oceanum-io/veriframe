@@ -25,6 +25,7 @@ requirements = [
     "fsspec",
     "gcsfs",
     "pandas-gbq",
+    "cartopy"
 ]
 
 setup_requirements = ["pytest-runner"]

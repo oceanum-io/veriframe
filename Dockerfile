@@ -3,6 +3,7 @@ MAINTAINER Tom Durrant <t.durrant@oceanum.science>
 
 RUN echo "--------------- Installing packages ---------------" &&\
     apt-get update && apt-get upgrade -y &&\
+    apt-get -y install python3-cartopy &&\
     apt-get clean all
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
