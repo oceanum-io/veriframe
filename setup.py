@@ -22,6 +22,9 @@ requirements = [
     "xarray",
     "scipy",
     "tabulate",
+    "fsspec",
+    "gcsfs",
+    "pandas-gbq",
 ]
 
 setup_requirements = ["pytest-runner"]
