@@ -15,5 +15,5 @@ COPY setup.py requirements.txt README.rst HISTORY.rst $REPOS/onverify/
 COPY onverify $REPOS/onverify/onverify
 COPY tests $REPOS/onverify/tests
 RUN cd $REPOS/onverify &&\
-	pip3 install -r requirements.txt --no-cache-dir
+	pip3 install -r requirements.txt --no-cache-dir &&\
 	pip3 install -e . --no-cache-dir
