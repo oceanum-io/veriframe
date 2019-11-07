@@ -1162,6 +1162,8 @@ def addcyclic_both(arrin, lonsin):
 def createPlots(
     ncglob=None,
     hdfglob=None,
+    dset=None,
+    project_id='oceanum-dev',
     plotdir="./plots",
     boxsize=2,
     vmin=0,
@@ -1175,24 +1177,28 @@ def createPlots(
     logging.info("Saving output to %s" % plotdir)
     if not os.path.isdir(plotdir):
         os.makedirs(plotdir)
-    if ncglob and hdfglob:
-        raise Exception("Only specify one of ncglob or hdfglob")
-    if not ncglob and not hdfglob:
-        raise Exception("Need to specify one of ncglob or hdfglob")
-    verif = Verify(**kwargs)
-    if ncglob:
-        verif.calcColocs(ncglob)
-    if hdfglob:
-        verif.loadColocs(hdfglob, subset=["lon", "lat", "obs", "model"])
+    if sum([ncglob==None, hdfglob==None, dset==None]) < 2:
+        raise Exception("Only specify one of ncglob, hdfglob or dset")
+    if not ncglob and not hdfglob and not dset:
+        raise Exception("Need to specify one of ncglob, hdfglob or dest")
+    if dset:
+        verif = VerifyGBQ(project_id=project_id, **kwargs)
+        verif.loadColocs(dset=dset)
+    else:
+        verif = Verify(**kwargs)
+        if ncglob:
+            verif.calcColocs(ncglob)
+        if hdfglob:
+            verif.loadColocs(hdfglob, subset=["lon", "lat", "obs", "model"])
     verif.vmin = vmin
     verif.vmax = vmax
     verif.obslabel = "Observed $H_s$"
     verif.modlabel = "Modelled $H_s$"
     ax = verif.plot_contour(cmap="jet")
-    pos, step = verif.add_stats(ax)
-    pos[1] = step
-    pos[0] = 0.6 * ax.get_xlim()[1]
-    verif.add_regression(ax, print_pos=pos)
+    #pos, step = verif.add_stats(ax)
+    #pos[1] = step
+    #pos[0] = 0.6 * ax.get_xlim()[1]
+    #verif.add_regression(ax, print_pos=pos)
     plt.savefig(os.path.join(plotdir, "propden.png"), bbox_inches="tight")
     ax = verif.plot_qq(increment=0.01, color="k")
     verif.plot_qq(increment=0.1, color="r", ax=ax)
@@ -1307,11 +1313,11 @@ class VerifyGBQ(Verify):
             self.logger.debug("Correcting obs lons to 0-360 range")
             self.obs.lon %= 360
 
-    def saveColocs(self, table, project_id="oceanum-dev"):
+    def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
         import pandas_gbq
 
         pandas_gbq.to_gbq(
-            self.df.reset_index()[GBQFIELDS], table, project_id=project_id
+            self.df.reset_index()[GBQFIELDS], table, project_id=project_id, if_exists=if_exists, **kwargs
         )
 
     def loadColocs(self, start=None, end=None, dset="wave.test"):
