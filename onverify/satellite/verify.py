@@ -1324,8 +1324,17 @@ class VerifyGBQ(Verify):
 
     def loadModel(self, fname):
         self.logger.info("Loading model data {}".format(fname))
-        local = get(fname, "./")
-        super().loadModel(local)
+        model = open_netcdf(fname)
+        if self.test:
+            self.logger.info(" Using first 10 timesteps only")
+            model = model.isel(time=slice(None, 10))
+        dsettime = model.time.to_pandas()
+        inodup = np.where(dsettime.duplicated() == False)[0]
+        self.model = model.isel(time=inodup)
+        self._check_model_data()
+        # local = get(fname, "./")
+        # super().loadModel(local)
+
 
 
 def calcColocsFile(
