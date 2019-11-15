@@ -332,7 +332,7 @@ class Verify(VerifyBase):
         obslist = []
         dttmp = self.t0
         #'swhcor', #'lat', #'lon', #'time' #'satellite',
-        obsnames = {"hs": "swhcor", "wndsp": "wind_speed_cor"}
+        obsnames = {"hs": "swh_adjusted", "wndsp": "wind_speed_cor"}
         obsvar = obsnames[self.modvar]
         obsvars = [obsnames[v] for v in {"hs", "wndsp"}.intersection(self.model_vars)]
         if not dropvars:
