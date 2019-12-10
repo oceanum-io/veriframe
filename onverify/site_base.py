@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 from matplotlib.font_manager import FontProperties
 import logging
 from matplotlib import rc
+import copy
 # import cartopy.crs as ccrs
 # import cartopy.feature as cfeature
 # from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
@@ -565,3 +566,160 @@ def plot_timeseries_monthly(df, figsize=(10,20),fill_between=False,
     fig.autofmt_xdate(rotation=0, ha='center')#bottom=0.2, rotation=30, ha='right')
 
     return fig,axs
+
+def calc_mad(df, obslabel, modlabel):
+    '''
+    Mean absolute difference
+
+    :math:`MAD = \\frac{1}{N}{\\sum_{i=1}^N {\\left|A_i-B_i \\right|}}}`
+    '''
+    return np.abs(df[modlabel].values - df[obslabel].values).mean()
+
+def calc_nmad(df, obslabel, modlabel):
+    '''
+    Normalised mean absolute difference
+
+    :math:`NMAD = \\frac{ \\frac{1}{N}{\\sum_{i=1}^N {\\left|A_i-B_i \\right|}}} } {\overline B}`
+    '''
+    return calc_mad(df, obslabel, modlabel) / df[obslabel].values.mean()
+
+def calc_rmsd(df, obslabel, modlabel):
+    '''
+    Root-mean-square difference
+
+    :math:`RMSD = \\sqrt{\\frac{1}{N}{\\sum_{i=1}^N {\\left(A_i-B_i \\right)^2}}}`
+    '''
+    return np.sqrt(((df[modlabel].values - df[obslabel].values)**2).mean())
+
+def calc_bias(df, obslabel, modlabel):
+    '''
+    Bias
+
+    :math:`Bias = {\\frac 1 N}{\\sum_{i=1}^N {A_i-B_i}}`
+    '''
+    return (df[modlabel].values - df[obslabel].values).mean()
+
+def calc_nbias(df, obslabel, modlabel):
+    '''
+    Normalised Bias
+
+    :math:`Bias = \\frac{{\\frac 1 N}{\\sum_{i=1}^N {A_i-B_i}}}{\overline B}`
+    '''
+    return calc_bias(df, obslabel, modlabel) / df[obslabel].values.mean()
+
+def calc_nrmsd(df, obslabel, modlabel):
+    '''
+    Normalised root-mean-square difference
+
+    :math:`NRMSD = \\frac{\\sqrt{\\frac{1}{N}{\\sum_{i=1}^N {\\left(A_i-B_i \\right)^2}}}}{\overline B}`
+    '''
+    return calc_rmsd(df, obslabel, modlabel) / df[obslabel].values.mean()
+
+def calc_si(df, obslabel, modlabel):
+    '''
+    Scatter Index
+
+    :math:`SI = {\\frac { \\sqrt { {\\frac 1 N} { \\sum_{i=1}^N {\\left(\\left(A_i-{\\overline A}\\right)-\\left(B_i-{\\overline B}\\right)\\right)^2}}} }{  \overline B} }`
+    '''
+    diff = df[modlabel] - df[obslabel]
+    bias = calc_bias(df, obslabel, modlabel)
+    return np.sqrt(((diff - bias)**2).mean())/df[obslabel].values.mean()
+
+def calc_r(df, obslabel, modlabel):
+    '''
+    Pearson Correlation Coeficient
+
+    :math:`R = ...`
+    '''
+    return np.corrcoef(df[modlabel].values, df[obslabel].values)[0,1]
+
+
+def add_stats(df, ax, obslabel, modlabel, decimals=3, loc='tr', pos=None, step=None, **kwargs):
+    """
+    Adds stats to the top left of a scatter plot
+    loc = top right (tr) or bottom left (bl)
+
+    pos can be fractional position within plot area with transform=ax.transAxes:
+
+        upper right:
+            pos = [0.8,1], step=0.1, transform=ax.transAxes:
+
+        upper left:
+            pos = [0.1,0.9], step=0.1, transform=ax.transAxes:
+
+        ...
+
+    """
+
+    if pos is None:
+        xlim, ylim = ax.get_xlim(), ax.get_ylim()
+        pos = np.array((xlim[0], ylim[1]))
+        step = step if step is not None else (ylim[1]-ylim[0])/12
+        if loc=='tr':
+            pos = np.array((xlim[0], ylim[1]))
+            pos[0] += step
+            pos[1] -= step
+        elif loc=='bl':
+            pos = np.array((xlim[1], ylim[0]))
+            pos[0] -= 5*step
+            pos[1] += 5*step
+        else:
+            logging.error('loc %s not recognised' % loc)
+            return
+
+    cols = kwargs.pop('cols', ['Bias', 'RMSD', 'SI', 'N'])
+    tb = stats_table(df, obslabel, modlabel, cols=cols)
+    pos1 = copy.copy(pos)
+    for k in cols:
+        string = '%s = %s' % (k, str(np.around(tb[k], decimals=decimals)))
+        ax.text(pos1[0], pos1[1], string, **kwargs)
+        pos1[1] -= step
+    return pos1, step
+
+def stats_table(df, obslabel, modlabel,
+                cols=['N', 'BIAS', 'RMSD', 'SI', 'NBIAS', 'NRMSD']):
+    ret = {}
+    for col in cols:
+        if col.lower() == 'n':
+            result = df.shape[0]
+        elif col.lower() == 'obsmean':
+            result = df[obslabel].values.mean()
+        elif col.lower() == 'modmean':
+            result = df[modlabel].values.mean()
+        else:
+            result = globals()['_'.join(['calc', col.lower()])](df, obslabel, modlabel)
+        ret[col] = result
+    return ret
+
+def stats_table_monthly(df, **kwargs):
+    groups = df.groupby(pd.TimeGrouper(freq='M'))
+    tb = {}
+    tb['all'] = stats_table(df, **kwargs)
+    for gname, dfm in groups:
+        mlabel = gname.strftime('%Y-%m')
+        tb[mlabel] = stats_table(dfm, **kwargs)
+    return pd.DataFrame(tb)
+
+def stats_table_groups(df, groups, **kwargs):
+    tb = {}
+    tb['all'] = stats_table(df, **kwargs)
+    for gname, dfm in groups:
+        tb[gname] = stats_table(dfm, **kwargs)
+    return pd.DataFrame(tb)
+
+# for month in months:
+#                 try:
+#                     bothm = both[month]
+#                     log.info('Number of records for month %s = %s' % (month, bothm.shape))
+#                     ds = bothm[cols]
+#                     ds.columns = ['x', 'y']
+#                 except KeyError:
+#                     log.info('Number of records for month %s = %s' % (month, 0))
+#                     ds = pd.DataFrame({'x': np.nan, 'y': np.nan}, index=[month])
+#                 statsm = compute_stats(ds)
+#                 statsm.columns = [month]
+#                 stats = pd.merge(stats,statsm, how='left', right_index=True, left_index=True)
+
+#             log.info('stats for model %s = \n%s' % (modname,stats))
+#             modstats[modname] = stats
+#         return modstats

@@ -1195,10 +1195,12 @@ def createPlots(
     verif.obslabel = "Observed $H_s$"
     verif.modlabel = "Modelled $H_s$"
     ax = verif.plot_contour(cmap="jet")
-    #pos, step = verif.add_stats(ax)
-    #pos[1] = step
-    #pos[0] = 0.6 * ax.get_xlim()[1]
-    #verif.add_regression(ax, print_pos=pos)
+    verif.add_regression(ax)
+    #verif.add_stats(ax=ax, loc='lower right')
+    pos, step = verif.add_stats(ax)
+    pos[1] = step
+    pos[0] = 0.6 * ax.get_xlim()[1]
+    verif.add_regression(ax, print_pos=pos)
     plt.savefig(os.path.join(plotdir, "propden.png"), bbox_inches="tight")
     ax = verif.plot_qq(increment=0.01, color="k")
     verif.plot_qq(increment=0.1, color="r", ax=ax)
