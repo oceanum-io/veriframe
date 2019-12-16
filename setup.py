@@ -27,7 +27,8 @@ requirements = [
     "pandas-gbq",
     "cartopy",
     "netcdf4",
-    "h5netcdf"
+    "h5netcdf",
+    "six==1.13.0" #pbq bug https://github.com/googleapis/google-cloud-python/issues/9965
 ]
 
 setup_requirements = ["pytest-runner"]
