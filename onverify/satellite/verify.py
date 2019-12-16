@@ -662,7 +662,7 @@ class Verify(VerifyBase):
             "N",
         ):
             ds[stat] = (("lat", "lon"), self.stats_grid[stat])
-        ds.to_netcdf(outnc)
+        ds.to_netcdf(outnc, engine='scipy')
 
     def plotGriddedStats(
         self,
