@@ -22,7 +22,7 @@ from scipy.stats import mstats
 from onverify.site_base import Verify as VerifyBase
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
-from onverify.io.gcs import open_netcdf
+from onverify.io.file import open_netcdf
 from oncore.dataio import get
 
 # from verify.core.calc_nrt_pairs import load_nrt
@@ -1293,13 +1293,29 @@ class VerifyGBQ(Verify):
         )
         self.project_id = project_id
 
+    @property
+    def gbq_fields(self):
+        """The GBQ fields to write."""
+        try:
+            fields = self.df.columns
+        except:
+            fields = GBQFIELDS
+        return fields
+
     def loadObs(self, interval=timedelta(hours=24), dropvars=None):
         self.logger.info("Loading observations")
 
         obsnames = {"hs": "swh", "wndsp": "wind_speed_alt_calibrated"}
         obsvar = obsnames[self.modvar]
         obsq = GBQAlt(dset=self.obsregex, project_id=self.project_id)
-        obsq.get(self.t0, self.t1)
+        obsq.get(
+            start=self.t0,
+            end=self.t1,
+            x0=self.modlonmin,
+            x1=self.modlonmax,
+            y0=self.modlatmin,
+            y1=self.modlatmax
+        )
         self.obs = obsq.df
         self.obs.set_index("time", inplace=True)
 
@@ -1317,13 +1333,16 @@ class VerifyGBQ(Verify):
 
     def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
         import pandas_gbq
-
         pandas_gbq.to_gbq(
-            self.df.reset_index()[GBQFIELDS], table, project_id=project_id, if_exists=if_exists, **kwargs
+            self.df.reset_index()[self.gbq_fields],
+            table,
+            project_id=project_id,
+            if_exists=if_exists,
+            **kwargs
         )
 
     def loadColocs(self, start=None, end=None, dset="wave.test"):
-        obsq = GBQAlt(dset=dset, variables=GBQFIELDS, project_id=self.project_id)
+        obsq = GBQAlt(dset=dset, variables=self.gbq_fields, project_id=self.project_id)
         obsq.get(start, end)
         self.df = obsq.df
         self.df.set_index("time", inplace=True)
@@ -1430,10 +1449,29 @@ def test():
 if __name__ == "__main__" and __package__ is None:
     # test()
     logging.basicConfig(level=logging.INFO)
-    from os import sys, path
+    fname = "/scratch/weuro-test.nc"
+    dset = "oceanum-prod.cersat.data"
+    project_id = "oceanum-prod"
+    v = VerifyGBQ(
+        obsdset=dset,
+        project_id="oceanum-prod",
+        model_vars=["xwnd", "ywnd", "hs", "tps", "tm02", "dpm", "depth"],
+        modvar="hs"
+    )
+    v.loadModel(fname)
+    v.loadObs()
+    v.interpModel()
+    v.createColocs()
+    v.saveColocs(
+        "wave.test",
+        project_id='oceanum-dev',
+        if_exists='append'
+    )
 
-    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-    Parser()
+    # from os import sys, path
+
+    # sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+    # Parser()
 
 
 """
