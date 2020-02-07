@@ -39,26 +39,17 @@ class GBQAlt:
         self.dset = dset
         self.project_id = project_id
 
-    def contruct_sql(self, start, end):
-        if not start:
-            sql = """
-                SELECT {}
-                FROM `{}`
-                ORDER by time asc
-            """.format(
-                ", ".join(self.variables), self.dset
-            )
-        else:
-            sql = """
-                SELECT {}
-                FROM `{}`
-                WHERE time BETWEEN "{}" AND "{}"
-                ORDER by time asc
-            """.format(
-                ", ".join(self.variables), self.dset, dt_to_sql(start), dt_to_sql(end)
-            )
+    def contruct_sql(self, start, end, x0, x1, y0, y1):
+        sql = f"SELECT {','.join(self.variables)} FROM `{self.dset}`"
+        clause = "WHERE"
+        if start:
+            sql += f" {clause} time BETWEEN '{dt_to_sql(start)}' AND '{dt_to_sql(end)}'"
+            clause = "AND"
+        if x0:
+            sql += f" {clause} lon BETWEEN {x0} AND {x1} AND lat BETWEEN {y0} AND {y1}"
+        sql += " ORDER BY time ASC"
         return sql
 
-    def get(self, start=None, end=None):
-        sql = self.contruct_sql(start, end)
+    def get(self, start=None, end=None, x0=None, x1=None, y0=None, y1=None):
+        sql = self.contruct_sql(start, end, x0, x1, y0, y1)
         self.df = retrieve(sql, project_id=self.project_id)
