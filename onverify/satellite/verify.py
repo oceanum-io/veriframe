@@ -1273,7 +1273,7 @@ class VerifyGBQ(Verify):
     def gbq_fields(self):
         """The GBQ fields to write."""
         try:
-            fields = self.df.columns
+            fields = ["time"] + self.df.columns
         except:
             fields = GBQFIELDS
         return fields
