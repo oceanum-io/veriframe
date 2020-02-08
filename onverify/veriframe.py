@@ -1723,10 +1723,5 @@ if __name__ == "__main__":
     df = pd.read_pickle(pkl)
 
     vf1 = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
-    vf2 = VeriFrame.from_file(
-        filename=pkl,
-        kind="pickle",
-        ref_col="obs",
-        verify_col="model"
-    )
+    vf2 = VeriFrame.from_file(filename=pkl, kind="pickle")
     vf3 = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
