@@ -1271,6 +1271,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         ref_col="obs",
         verify_col="model",
         project_id="oceanum-dev",
+        columns="minimum",
         var=None,
         circular=False,
         ref_label=None,
@@ -1286,6 +1287,10 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - ``ref_col`` (str): name of column with observation values.
             - ``verify_col`` (str): name of column with model values.
             - ``project_id`` (str): Project id where GBQ table is defined.
+            - ``columns`` (str): Column to load from GBQ table. Valid options are:
+                - ``minimum``: Equivalent to ["lon", "lat", f"{ref_col}", f"{verify_col}"].
+                - ``all``: Load all columns.
+                - List of columns to load.
             - ``var`` (str): id of variable to verify, 'hs' by default (needs to be
               defined in vardef.yml file).
             - ``circular`` (bool): use True for circular arrays such as directions.
@@ -1309,7 +1314,18 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         if verify_label is not None:
             verify_kw.update({"verify_label": verify_label})
 
-        gbqalt = GBQAlt(dset=dset, variables=["*"], project_id=project_id)
+        if columns == "all":
+            variables = ["*"]
+        elif columns == "minimum":
+            variables = ["lon", "lat", ref_col, verify_col]
+        elif isinstance(columns, (list, tuple)):
+            variables = list(columns)
+        else:
+            raise ValueError(
+                "Columns must be one of 'minimum', 'all' or a list of columns."
+            )
+
+        gbqalt = GBQAlt(dset=dset, variables=variables, project_id=project_id)
         df = gbqalt.get()
         return cls(df, **verify_kw)
 
