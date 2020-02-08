@@ -34,6 +34,9 @@ from onverify import stats, VARDEF, DEFAULTS
 from onverify.io.gbq import GBQAlt
 
 
+logger = logging.getLogger(__name__)
+
+
 # TODO: make depth contour map more efficient
 # TODO: fix downstream dependencies
 # TODO: pass multiple kwarg dicts when more than one plot is made
@@ -256,8 +259,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         # Optional arguments
         var = kwargs.pop("var", "hs")
         circular = kwargs.pop("circular", False)
-        lat = kwargs.pop("lat", None)
-        lon = kwargs.pop("lon", None)
+        lat = kwargs.pop("lat", "lat")
+        lon = kwargs.pop("lon", "lon")
         ref_label = kwargs.pop("ref_label", ref_col)
         verify_label = kwargs.pop("verify_label", verify_col)
 
@@ -727,7 +730,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         else:
             pobj = ax.scatter(xs, ys, c="black", **kwargs)
             colorbar = False
-            logging.warning(
+            logger.warning(
                 "No value returned from kde, density scatter cannot "
                 "be calculated {}--{}".format(self.ref_col, self.verify_col)
             )
@@ -1217,6 +1220,83 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                 stream.write(table)
         return table
 
+    def gridstats(self, boxsize, latedges=None, lonedges=None):
+        """Calculate the stats for each grid point of given box size (lat,lon).
+
+        Args:
+            boxsize (float): Length of grid cells.
+            latedges (array): Custom latitude array for grid.
+            lonedges (array): Custom longitude array for grid.
+
+        Returns:
+            Xarray dataset with gridded stats.
+
+        """
+        assert "lat" in self.columns and "lon" in self.columns, "gridstats requires lon, lat columns in VeriFrame."
+        logger.info("    Calculating gridded statistics...")
+
+        df = self[[self.ref_col, self.verify_col]].dropna()
+        obs = df[self.ref_col]
+        model = df[self.verify_col]
+
+        if latedges is None:
+            latmin = self.lat.min() + (abs(self.lat.min()) % boxsize)
+            latmax = self.lat.max() - (abs(self.lat.min()) % boxsize)
+            latedges = np.arange(latmin, latmax + boxsize, boxsize)
+
+        if lonedges is None:
+            lonmin = self.lon.min() + (abs(self.lon.min()) % boxsize)
+            lonmax = self.lon.max() - (abs(self.lon.min()) % boxsize)
+            lonedges = np.arange(lonmin, lonmax + boxsize, boxsize)
+
+        # Calculating gridded sums
+        diff = model - obs
+        diff2 = model ** 2 - obs ** 2
+        msdall = diff ** 2
+
+        n = np.histogram2d(self.lat, self.lon, bins=(latedges, lonedges))[0]
+        bias_sum = np.histogram2d(self.lat, self.lon, weights=diff, bins=(latedges, lonedges))[0]
+        obs_sum = np.histogram2d(self.lat, self.lon, weights=obs, bins=(latedges, lonedges))[0]
+        mod_sum = np.histogram2d(self.lat, self.lon, weights=model, bins=(latedges, lonedges))[0]
+        msd_sum = np.histogram2d(self.lat, self.lon, weights=msdall, bins=(latedges, lonedges))[0]
+
+        # Masking
+        bias_sum = np.ma.masked_equal(bias_sum, 0)
+        obs_sum = np.ma.masked_equal(obs_sum, 0)
+        mod_sum = np.ma.masked_equal(mod_sum, 0)
+        msd_sum = np.ma.masked_equal(msd_sum, 0)
+
+        msd = msd_sum / n
+
+        # Assert coordinates are matching
+        nlat, nlon = n.shape
+        if latedges.size > nlat:
+            latedges = latedges[:-1]
+        if lonedges.size > nlon:
+            lonedges = lonedges[:-1]
+
+        # Assign gridded dataset
+        dset = xr.Dataset(coords={"lat": latedges, "lon": lonedges})
+
+        dset["obsmean"] = xr.DataArray(obs_sum / n, coords=dset.coords)
+        dset["modmean"] = xr.DataArray(mod_sum / n, coords=dset.coords)
+        dset["bias"] = xr.DataArray(bias_sum / n, coords=dset.coords)
+        dset["rmsd"] = xr.DataArray(np.sqrt(msd), coords=dset.coords)
+        dset["si"] = xr.DataArray(
+            data=np.sqrt((msd - dset["bias"] ** 2)) / (np.abs(obs_sum) / n),
+            coords=dset.coords
+        )
+        dset["nbias"] = xr.DataArray(
+            data=dset["bias"] / (np.abs(obs_sum) / n),
+            coords=dset.coords
+        )
+        dset["nrmsd"] = xr.DataArray(
+            data=dset["rmsd"] / (np.abs(obs_sum) / n),
+            coords=dset.coords
+        )
+
+        return dset
+
     @classmethod
     def from_file(
         cls,
@@ -1637,7 +1717,7 @@ class VeriFrameMulti(VeriFrame):
         return self._multi_plot_obs("plot_cdf", ax=ax, **kwargs)
 
     def plot_set(self, map_buff=20):
-        logging.info("   Plotting set ... ")
+        logger.info("   Plotting set ... ")
         nmods = len(self.verify_cols)
         nr = max(nmods + 1, 3)
         nc = 3
@@ -1675,7 +1755,7 @@ class VeriFrameMulti(VeriFrame):
         return
 
     def plot_set_scatter_density(self, map_buff=20):
-        logging.info("   Plotting set scatter density... ")
+        logger.info("   Plotting set scatter density... ")
         nmods = len(self.verify_cols)
         nr = 2 + int(np.ceil(nmods / 3.0))
         nc = 3
@@ -1720,8 +1800,9 @@ if __name__ == "__main__":
     # from onverify.veriframe import VeriFrame
     pkl = "/source/paper-swan-st6/data/altverify/nweuro/new/weuro_st6_03_debias097/colocs/201601.pkl"
 
-    df = pd.read_pickle(pkl)
+    # df = pd.read_pickle(pkl)
+    # vf = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
+    # vf = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
+    vf = VeriFrame.from_file(filename=pkl, kind="pickle")
+    dset = vf.gridstats(boxsize=0.5)
 
-    vf1 = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
-    vf2 = VeriFrame.from_file(filename=pkl, kind="pickle")
-    vf3 = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
