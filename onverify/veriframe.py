@@ -31,6 +31,7 @@ except ImportError as err:
 from onverify.core.regression import linear_regression
 from onverify.core.taylorDiagram import df2taylor
 from onverify import stats, VARDEF, DEFAULTS
+from onverify.io.gbq import GBQAlt
 
 
 # TODO: make depth contour map more efficient
@@ -1231,7 +1232,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         verify_label=None,
         **kwargs
     ):
-        """Alternate constructor to create a ``VeriFrame`` from a file.
+        """Alternative constructor to create a ``VeriFrame`` from a file.
 
         Args:
             - ``filename`` (str): name of CSV file to read.
@@ -1271,6 +1272,54 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         df = getattr(pd, "read_" + kind)(filename, **kwargs)
         return cls(df, **verify_kw)
 
+    @classmethod
+    def from_gbq(
+        cls,
+        dset,
+        ref_col="obs",
+        verify_col="model",
+        project_id="oceanum-dev",
+        var=None,
+        circular=False,
+        ref_label=None,
+        verify_label=None,
+        **kwargs
+    ):
+        """Alternative constructor to create a ``VeriFrame`` from GBQ table.
+
+        Args:
+            - ``dset`` (str): name of GBQ table to read from.
+            - ``kind`` (str): type of file to read from, must correspond to a valid
+              `read_{kind}` method in pandas, e.g., `csv`, `pickle`, `excel`, etc.
+            - ``ref_col`` (str): name of column with observation values.
+            - ``verify_col`` (str): name of column with model values.
+            - ``project_id`` (str): Project id where GBQ table is defined.
+            - ``var`` (str): id of variable to verify, 'hs' by default (needs to be
+              defined in vardef.yml file).
+            - ``circular`` (bool): use True for circular arrays such as directions.
+            - ``ref_label`` (str): used for labelling obs in plots if provided,
+              otherwise constructed from ref_col, var, units.
+            - ``verify_label`` (str): used for labelling model in plots if provided,
+              otherwise constructed from verify_col, var, units.
+            - ``kwargs``: options to pass to `pandas.read_{kind}` method.
+
+        Returns:
+            - VeriFrame instance.
+
+        """
+        verify_kw = {"ref_col": ref_col, "verify_col": ref_col}
+        if var is not None:
+            verify_kw.update({"var": var})
+        if circular is not None:
+            verify_kw.update({"circular": circular})
+        if ref_label is not None:
+            verify_kw.update({"ref_label": ref_label})
+        if verify_label is not None:
+            verify_kw.update({"verify_label": verify_label})
+
+        gbqalt = GBQAlt(dset=dset, variables=["*"], project_id=project_id)
+        df = gbqalt.get()
+        return cls(df, **verify_kw)
 
 def plot_map(
     lat,
@@ -1665,5 +1714,11 @@ if __name__ == "__main__":
 
     df = pd.read_pickle(pkl)
 
-    vf = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
-
+    vf1 = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
+    vf2 = VeriFrame.from_file(
+        filename=pkl,
+        kind="pickle",
+        ref_col="obs",
+        verify_col="model"
+    )
+    vf3 = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
