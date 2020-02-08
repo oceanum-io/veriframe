@@ -783,30 +783,6 @@ class Verify(VerifyBase):
         self.obsname = "obs"
         self.modname = "model"
 
-    def loadColocs(self, fglob, subset=None):
-        if isinstance(fglob, list):
-            filelist = fglob
-        else:
-            filelist = sorted(glob(fglob))
-        self.logger.info("Loading colocs %s \n" % "\n\t".join(filelist))
-
-        self.df = None
-        for fname in filelist:
-            print(" Reading %s" % fname)
-            if self.df is None:
-                if subset is None:
-                    self.df = pd.read_pickle(fname)
-                else:
-                    self.df = pd.read_pickle(fname)[subset]
-            else:
-                if subset is None:
-                    self.df = self.df.append(pd.read_pickle(fname))
-                else:
-                    self.df = self.df.append(pd.read_pickle(fname)[subset])
-
-        self.obsname = "obs"
-        self.modname = "model"
-
 
 class VerifyNRT(Verify):
     def __init__(
