@@ -524,7 +524,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         ylim=None,
         scatter_kw={},
         qq_kw={},
-        **kwargs
+        **kwargs,
     ):
         """Plot scatter and qq of model vs observations.
 
@@ -560,7 +560,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         cbar_pad=0.1,
         oceanographic=True,
         show_label=False,
-        **kwargs
+        **kwargs,
     ):
         """Polar scatter plot.
 
@@ -751,7 +751,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         loc=1,
         xlim=None,
         ylim=None,
-        **kwargs
+        **kwargs,
     ):
         """Probability density function plot.
 
@@ -791,7 +791,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                     normed=True,
                     facecolor=kwargs_obs["color"],
                     label=None,
-                    **kwargs_hist
+                    **kwargs_hist,
                 )
         if show_mod:
             ax = self[self.verify_col].plot(
@@ -804,7 +804,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                     facecolor=kwargs_mod["color"],
                     color=kwargs_mod["color"],
                     label=None,
-                    **kwargs_hist
+                    **kwargs_hist,
                 )
 
         offset = 0.1 * (self.vmax - self.vmin)
@@ -932,7 +932,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         show_mod=True,
         show_obs=True,
         fill_under_obs=False,
-        **kwargs
+        **kwargs,
     ):
         """
 
@@ -985,7 +985,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                     show_mod=show_mod,
                     show_obs=show_obs,
                     fill_under_obs=fill_under_obs,
-                    **kwargs
+                    **kwargs,
                 )
             )
             ax.set_ylim(ymin, ymax)
@@ -1009,7 +1009,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         ocean=False,
         coastline=False,
         layer="BlueMarble_ShadedRelief_Bathymetry",
-        **kwargs
+        **kwargs,
     ):
         """Plot map of obs location.
 
@@ -1059,7 +1059,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             ocean=ocean,
             coastline=coastline,
             layer=layer,
-            **kwargs
+            **kwargs,
         )
         return ax
 
@@ -1232,7 +1232,9 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             Xarray dataset with gridded stats.
 
         """
-        assert "lat" in self.columns and "lon" in self.columns, "gridstats requires lon, lat columns in VeriFrame."
+        if not ("lat" in self.columns and "lon" in self.columns):
+            raise ValueError("gridstats requires lon, lat columns in VeriFrame.")
+
         logger.info("    Calculating gridded statistics...")
 
         df = self[[self.ref_col, self.verify_col]].dropna()
@@ -1255,10 +1257,18 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         msdall = diff ** 2
 
         n = np.histogram2d(self.lat, self.lon, bins=(latedges, lonedges))[0]
-        bias_sum = np.histogram2d(self.lat, self.lon, weights=diff, bins=(latedges, lonedges))[0]
-        obs_sum = np.histogram2d(self.lat, self.lon, weights=obs, bins=(latedges, lonedges))[0]
-        mod_sum = np.histogram2d(self.lat, self.lon, weights=model, bins=(latedges, lonedges))[0]
-        msd_sum = np.histogram2d(self.lat, self.lon, weights=msdall, bins=(latedges, lonedges))[0]
+        bias_sum = np.histogram2d(
+            self.lat, self.lon, weights=diff, bins=(latedges, lonedges)
+        )[0]
+        obs_sum = np.histogram2d(
+            self.lat, self.lon, weights=obs, bins=(latedges, lonedges)
+        )[0]
+        mod_sum = np.histogram2d(
+            self.lat, self.lon, weights=model, bins=(latedges, lonedges)
+        )[0]
+        msd_sum = np.histogram2d(
+            self.lat, self.lon, weights=msdall, bins=(latedges, lonedges)
+        )[0]
 
         # Masking
         bias_sum = np.ma.masked_equal(bias_sum, 0)
@@ -1284,15 +1294,13 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         dset["rmsd"] = xr.DataArray(np.sqrt(msd), coords=dset.coords)
         dset["si"] = xr.DataArray(
             data=np.sqrt((msd - dset["bias"] ** 2)) / (np.abs(obs_sum) / n),
-            coords=dset.coords
+            coords=dset.coords,
         )
         dset["nbias"] = xr.DataArray(
-            data=dset["bias"] / (np.abs(obs_sum) / n),
-            coords=dset.coords
+            data=dset["bias"] / (np.abs(obs_sum) / n), coords=dset.coords
         )
         dset["nrmsd"] = xr.DataArray(
-            data=dset["rmsd"] / (np.abs(obs_sum) / n),
-            coords=dset.coords
+            data=dset["rmsd"] / (np.abs(obs_sum) / n), coords=dset.coords
         )
 
         return dset
@@ -1308,7 +1316,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         circular=False,
         ref_label=None,
         verify_label=None,
-        **kwargs
+        **kwargs,
     ):
         """Alternative constructor to create a ``VeriFrame`` from a file.
 
@@ -1356,7 +1364,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         circular=False,
         ref_label=None,
         verify_label=None,
-        **kwargs
+        **kwargs,
     ):
         """Alternative constructor to create a ``VeriFrame`` from GBQ table.
 
@@ -1409,6 +1417,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         df = gbqalt.get()
         return cls(df, **verify_kw)
 
+
 def plot_map(
     lat,
     lon,
@@ -1424,7 +1433,7 @@ def plot_map(
     coastline=False,
     layer="BlueMarble_ShadedRelief_Bathymetry",
     cmap="jet",
-    **kwargs
+    **kwargs,
 ):
     """Plot map of obs location.
 
@@ -1805,4 +1814,3 @@ if __name__ == "__main__":
     # vf = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
     vf = VeriFrame.from_file(filename=pkl, kind="pickle")
     dset = vf.gridstats(boxsize=0.5)
-
