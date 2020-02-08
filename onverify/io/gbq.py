@@ -53,3 +53,4 @@ class GBQAlt:
     def get(self, start=None, end=None, x0=None, x1=None, y0=None, y1=None):
         sql = self.contruct_sql(start, end, x0, x1, y0, y1)
         self.df = retrieve(sql, project_id=self.project_id)
+        return self.df
