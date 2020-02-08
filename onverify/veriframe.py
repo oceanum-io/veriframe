@@ -1222,12 +1222,10 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         cls,
         filename,
         kind,
-        ref_col,
-        verify_col,
+        ref_col="obs",
+        verify_col="model",
         var=None,
         circular=False,
-        lat=None,
-        lon=None,
         ref_label=None,
         verify_label=None,
         **kwargs
@@ -1243,8 +1241,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - ``var`` (str): id of variable to verify, 'hs' by default (needs to be
               defined in vardef.yml file).
             - ``circular`` (bool): use True for circular arrays such as directions.
-            - ``lat`` (float): latitude of site to validate, ignored if already a column.
-            - ``lon`` (float): longitude of site to validate, ignored if already a column.
             - ``ref_label`` (str): used for labelling obs in plots if provided,
               otherwise constructed from ref_col, var, units.
             - ``verify_label`` (str): used for labelling model in plots if provided,
@@ -1255,20 +1251,16 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - VeriFrame instance.
 
         """
-        verify_kw = {}
-        for key in [
-            "ref_col",
-            "verify_col",
-            "var",
-            "circular",
-            "lat",
-            "lon",
-            "ref_label",
-            "verify_label",
-        ]:
-            val = locals()[key]
-            if val is not None:
-                verify_kw.update({key: val})
+        verify_kw = {"ref_col": ref_col, "verify_col": ref_col}
+        if var is not None:
+            verify_kw.update({"var": var})
+        if circular is not None:
+            verify_kw.update({"circular": circular})
+        if ref_label is not None:
+            verify_kw.update({"ref_label": ref_label})
+        if verify_label is not None:
+            verify_kw.update({"verify_label": verify_label})
+
         df = getattr(pd, "read_" + kind)(filename, **kwargs)
         return cls(df, **verify_kw)
 
