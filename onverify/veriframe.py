@@ -1251,7 +1251,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - VeriFrame instance.
 
         """
-        verify_kw = {"ref_col": ref_col, "verify_col": ref_col}
+        verify_kw = {"ref_col": ref_col, "verify_col": verify_col}
         if var is not None:
             verify_kw.update({"var": var})
         if circular is not None:
@@ -1304,7 +1304,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - VeriFrame instance.
 
         """
-        verify_kw = {"ref_col": ref_col, "verify_col": ref_col}
+        verify_kw = {"ref_col": ref_col, "verify_col": verify_col}
         if var is not None:
             verify_kw.update({"var": var})
         if circular is not None:
