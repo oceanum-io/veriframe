@@ -385,12 +385,9 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             return VARDEF["vars"][self.var]["units"]
         except KeyError:
             print(
-                "Variable {} not implemented in {}. Available variables: "
-                "{}".format(
-                    self.var,
-                    os.path.abspath(os.path.join(HERE, "vardef.yml")),
-                    ",".join(VARDEF["vars"].keys()),
-                )
+                f"Variable {self.var} not implemented in "
+                f"{os.path.abspath(os.path.join(HERE, 'vardef.yml'))}. Available "
+                f"variables: {','.join(VARDEF['vars'].keys())}"
             )
             return ""
 
@@ -1354,7 +1351,7 @@ def plot_map(
         try:
             ax.add_wmts("http://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi", layer)
         except ValueError:
-            print("Layer {} is only available in cartopy>=0.16".format(layer))
+            print(f"Layer {layer} is only available in cartopy>=0.16")
             raise
     elif isinstance(layer, xr.DataArray):
         layer = layer.sel(lon=slice(lonmin, lonmax), lat=slice(latmin, latmax))
