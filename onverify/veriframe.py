@@ -284,7 +284,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         self._stats_table = ["n", "bias", "rmsd", "si", "mad", "mrad", "nbias", "nrmsd"]
 
     def __repr__(self):
-        return "<{}>\n{}".format(self.__class__.__name__, str(self))
+        return f"<{self.__class__.__name__}>\n{super().__repr__()}"
 
     def _set_axis_label(self, ax):
         """Set xy labels for axis."""
@@ -1663,33 +1663,10 @@ class VeriFrameMulti(VeriFrame):
 
 if __name__ == "__main__":
 
-    # from verify.core.veriframe import VeriFrame, VeriFrameMulti
-    import pandas as pd
-    from onverify.veriframe import VeriFrame
+    # from onverify.veriframe import VeriFrame
+    pkl = "/source/paper-swan-st6/data/altverify/nweuro/new/weuro_st6_03_debias097/colocs/201601.pkl"
 
-    df = pd.read_pickle("../tests/sample_files/collocs.pkl")
-    df["hs_mod2"] = df["hs_mod"] * 2
+    df = pd.read_pickle(pkl)
 
-    vf = VeriFrame(df, ref_col="hs_obs", verify_col="hs_mod", var="hs")
-    # vfm = VeriFrameMulti(df, ref_col="hs_obs", verify_cols=["hs_mod", "hs_mod2"])
+    vf = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
 
-    # # import matplotlib.pyplot as plt
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # # vfm.plot_cdf(ax=ax, alpha=0.6)
-    # vfm.plot_set()
-
-    # # tmp = vfm.iloc[0:100]
-    # # print tmp.verify_cols, tmp.verify_labels
-    # # import matplotlib.pyplot as plt
-    # # plt.figure()
-    # # tmp.plot_timeseries()
-    # plt.show()
-    # # from verify.core.tests.data import create_test_data
-    # # df = create_test_data(n=20, nmod=1)
-    # # df['obs'] *= 360
-    # # df['m1'] *= 360
-    # # # vf = VeriFrame(df, verify_col='m1')
-    # # vf = VeriFrame(df, ref_col='obs', verify_col='m1')
-    # # # vf.plot_scatter()
-    # # # plt.show()
