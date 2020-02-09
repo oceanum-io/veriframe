@@ -1288,6 +1288,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         # Assign gridded dataset
         dset = xr.Dataset(coords={"lat": latedges, "lon": lonedges})
 
+        dset["nobs"] = xr.DataArray(n, coords=dset.coords)
         dset["obsmean"] = xr.DataArray(obs_sum / n, coords=dset.coords)
         dset["modmean"] = xr.DataArray(mod_sum / n, coords=dset.coords)
         dset["bias"] = xr.DataArray(bias_sum / n, coords=dset.coords)
@@ -1370,8 +1371,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
 
         Args:
             - ``dset`` (str): name of GBQ table to read from.
-            - ``kind`` (str): type of file to read from, must correspond to a valid
-              `read_{kind}` method in pandas, e.g., `csv`, `pickle`, `excel`, etc.
             - ``ref_col`` (str): name of column with observation values.
             - ``verify_col`` (str): name of column with model values.
             - ``project_id`` (str): Project id where GBQ table is defined.
