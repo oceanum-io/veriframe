@@ -31,6 +31,10 @@ except ImportError as err:
 from onverify.core.regression import linear_regression
 from onverify.core.taylorDiagram import df2taylor
 from onverify import stats, VARDEF, DEFAULTS
+from onverify.io.gbq import GBQAlt
+
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: make depth contour map more efficient
@@ -255,8 +259,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         # Optional arguments
         var = kwargs.pop("var", "hs")
         circular = kwargs.pop("circular", False)
-        lat = kwargs.pop("lat", None)
-        lon = kwargs.pop("lon", None)
+        lat = kwargs.pop("lat", "lat")
+        lon = kwargs.pop("lon", "lon")
         ref_label = kwargs.pop("ref_label", ref_col)
         verify_label = kwargs.pop("verify_label", verify_col)
 
@@ -284,7 +288,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         self._stats_table = ["n", "bias", "rmsd", "si", "mad", "mrad", "nbias", "nrmsd"]
 
     def __repr__(self):
-        return "<{}>\n{}".format(self.__class__.__name__, str(self))
+        return f"<{self.__class__.__name__}>\n{super().__repr__()}"
 
     def _set_axis_label(self, ax):
         """Set xy labels for axis."""
@@ -385,12 +389,9 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             return VARDEF["vars"][self.var]["units"]
         except KeyError:
             print(
-                "Variable {} not implemented in {}. Available variables: "
-                "{}".format(
-                    self.var,
-                    os.path.abspath(os.path.join(HERE, "vardef.yml")),
-                    ",".join(VARDEF["vars"].keys()),
-                )
+                f"Variable {self.var} not implemented in "
+                f"{os.path.abspath(os.path.join(HERE, 'vardef.yml'))}. Available "
+                f"variables: {','.join(VARDEF['vars'].keys())}"
             )
             return ""
 
@@ -523,7 +524,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         ylim=None,
         scatter_kw={},
         qq_kw={},
-        **kwargs
+        **kwargs,
     ):
         """Plot scatter and qq of model vs observations.
 
@@ -559,7 +560,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         cbar_pad=0.1,
         oceanographic=True,
         show_label=False,
-        **kwargs
+        **kwargs,
     ):
         """Polar scatter plot.
 
@@ -729,7 +730,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         else:
             pobj = ax.scatter(xs, ys, c="black", **kwargs)
             colorbar = False
-            logging.warning(
+            logger.warning(
                 "No value returned from kde, density scatter cannot "
                 "be calculated {}--{}".format(self.ref_col, self.verify_col)
             )
@@ -750,7 +751,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         loc=1,
         xlim=None,
         ylim=None,
-        **kwargs
+        **kwargs,
     ):
         """Probability density function plot.
 
@@ -790,7 +791,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                     normed=True,
                     facecolor=kwargs_obs["color"],
                     label=None,
-                    **kwargs_hist
+                    **kwargs_hist,
                 )
         if show_mod:
             ax = self[self.verify_col].plot(
@@ -803,7 +804,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                     facecolor=kwargs_mod["color"],
                     color=kwargs_mod["color"],
                     label=None,
-                    **kwargs_hist
+                    **kwargs_hist,
                 )
 
         offset = 0.1 * (self.vmax - self.vmin)
@@ -931,7 +932,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         show_mod=True,
         show_obs=True,
         fill_under_obs=False,
-        **kwargs
+        **kwargs,
     ):
         """
 
@@ -984,7 +985,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                     show_mod=show_mod,
                     show_obs=show_obs,
                     fill_under_obs=fill_under_obs,
-                    **kwargs
+                    **kwargs,
                 )
             )
             ax.set_ylim(ymin, ymax)
@@ -1008,7 +1009,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         ocean=False,
         coastline=False,
         layer="BlueMarble_ShadedRelief_Bathymetry",
-        **kwargs
+        **kwargs,
     ):
         """Plot map of obs location.
 
@@ -1058,7 +1059,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             ocean=ocean,
             coastline=coastline,
             layer=layer,
-            **kwargs
+            **kwargs,
         )
         return ax
 
@@ -1219,22 +1220,106 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                 stream.write(table)
         return table
 
+    def gridstats(self, boxsize, latedges=None, lonedges=None):
+        """Calculate the stats for each grid point of given box size (lat,lon).
+
+        Args:
+            boxsize (float): Length of grid cells.
+            latedges (array): Custom latitude array for grid.
+            lonedges (array): Custom longitude array for grid.
+
+        Returns:
+            Xarray dataset with gridded stats.
+
+        """
+        if not ("lat" in self.columns and "lon" in self.columns):
+            raise ValueError("gridstats requires lon, lat columns in VeriFrame.")
+
+        logger.info("    Calculating gridded statistics...")
+
+        df = self[[self.ref_col, self.verify_col]].dropna()
+        obs = df[self.ref_col]
+        model = df[self.verify_col]
+
+        if latedges is None:
+            latmin = self.lat.min() + (abs(self.lat.min()) % boxsize)
+            latmax = self.lat.max() - (abs(self.lat.min()) % boxsize)
+            latedges = np.arange(latmin, latmax + boxsize, boxsize)
+
+        if lonedges is None:
+            lonmin = self.lon.min() + (abs(self.lon.min()) % boxsize)
+            lonmax = self.lon.max() - (abs(self.lon.min()) % boxsize)
+            lonedges = np.arange(lonmin, lonmax + boxsize, boxsize)
+
+        # Calculating gridded sums
+        diff = model - obs
+        diff2 = model ** 2 - obs ** 2
+        msdall = diff ** 2
+
+        n = np.histogram2d(self.lat, self.lon, bins=(latedges, lonedges))[0]
+        bias_sum = np.histogram2d(
+            self.lat, self.lon, weights=diff, bins=(latedges, lonedges)
+        )[0]
+        obs_sum = np.histogram2d(
+            self.lat, self.lon, weights=obs, bins=(latedges, lonedges)
+        )[0]
+        mod_sum = np.histogram2d(
+            self.lat, self.lon, weights=model, bins=(latedges, lonedges)
+        )[0]
+        msd_sum = np.histogram2d(
+            self.lat, self.lon, weights=msdall, bins=(latedges, lonedges)
+        )[0]
+
+        # Masking
+        bias_sum = np.ma.masked_equal(bias_sum, 0)
+        obs_sum = np.ma.masked_equal(obs_sum, 0)
+        mod_sum = np.ma.masked_equal(mod_sum, 0)
+        msd_sum = np.ma.masked_equal(msd_sum, 0)
+
+        msd = msd_sum / n
+
+        # Assert coordinates are matching
+        nlat, nlon = n.shape
+        if latedges.size > nlat:
+            latedges = latedges[:-1]
+        if lonedges.size > nlon:
+            lonedges = lonedges[:-1]
+
+        # Assign gridded dataset
+        dset = xr.Dataset(coords={"lat": latedges, "lon": lonedges})
+
+        dset["nobs"] = xr.DataArray(n, coords=dset.coords)
+        dset["obsmean"] = xr.DataArray(obs_sum / n, coords=dset.coords)
+        dset["modmean"] = xr.DataArray(mod_sum / n, coords=dset.coords)
+        dset["bias"] = xr.DataArray(bias_sum / n, coords=dset.coords)
+        dset["rmsd"] = xr.DataArray(np.sqrt(msd), coords=dset.coords)
+        dset["si"] = xr.DataArray(
+            data=np.sqrt((msd - dset["bias"] ** 2)) / (np.abs(obs_sum) / n),
+            coords=dset.coords,
+        )
+        dset["nbias"] = xr.DataArray(
+            data=dset["bias"] / (np.abs(obs_sum) / n), coords=dset.coords
+        )
+        dset["nrmsd"] = xr.DataArray(
+            data=dset["rmsd"] / (np.abs(obs_sum) / n), coords=dset.coords
+        )
+
+        return dset
+
     @classmethod
     def from_file(
         cls,
         filename,
         kind,
-        ref_col,
-        verify_col,
+        ref_col="obs",
+        verify_col="model",
         var=None,
         circular=False,
-        lat=None,
-        lon=None,
         ref_label=None,
         verify_label=None,
-        **kwargs
+        **kwargs,
     ):
-        """Alternate constructor to create a ``VeriFrame`` from a file.
+        """Alternative constructor to create a ``VeriFrame`` from a file.
 
         Args:
             - ``filename`` (str): name of CSV file to read.
@@ -1245,8 +1330,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - ``var`` (str): id of variable to verify, 'hs' by default (needs to be
               defined in vardef.yml file).
             - ``circular`` (bool): use True for circular arrays such as directions.
-            - ``lat`` (float): latitude of site to validate, ignored if already a column.
-            - ``lon`` (float): longitude of site to validate, ignored if already a column.
             - ``ref_label`` (str): used for labelling obs in plots if provided,
               otherwise constructed from ref_col, var, units.
             - ``verify_label`` (str): used for labelling model in plots if provided,
@@ -1257,21 +1340,80 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - VeriFrame instance.
 
         """
-        verify_kw = {}
-        for key in [
-            "ref_col",
-            "verify_col",
-            "var",
-            "circular",
-            "lat",
-            "lon",
-            "ref_label",
-            "verify_label",
-        ]:
-            val = locals()[key]
-            if val is not None:
-                verify_kw.update({key: val})
+        verify_kw = {"ref_col": ref_col, "verify_col": verify_col}
+        if var is not None:
+            verify_kw.update({"var": var})
+        if circular is not None:
+            verify_kw.update({"circular": circular})
+        if ref_label is not None:
+            verify_kw.update({"ref_label": ref_label})
+        if verify_label is not None:
+            verify_kw.update({"verify_label": verify_label})
+
         df = getattr(pd, "read_" + kind)(filename, **kwargs)
+        return cls(df, **verify_kw)
+
+    @classmethod
+    def from_gbq(
+        cls,
+        dset,
+        ref_col="obs",
+        verify_col="model",
+        project_id="oceanum-dev",
+        columns="minimum",
+        var=None,
+        circular=False,
+        ref_label=None,
+        verify_label=None,
+        **kwargs,
+    ):
+        """Alternative constructor to create a ``VeriFrame`` from GBQ table.
+
+        Args:
+            - ``dset`` (str): name of GBQ table to read from.
+            - ``ref_col`` (str): name of column with observation values.
+            - ``verify_col`` (str): name of column with model values.
+            - ``project_id`` (str): Project id where GBQ table is defined.
+            - ``columns`` (str): Column to load from GBQ table. Valid options are:
+                - ``minimum``: Equivalent to ["lon", "lat", f"{ref_col}", f"{verify_col}"].
+                - ``all``: Load all columns.
+                - List of columns to load.
+            - ``var`` (str): id of variable to verify, 'hs' by default (needs to be
+              defined in vardef.yml file).
+            - ``circular`` (bool): use True for circular arrays such as directions.
+            - ``ref_label`` (str): used for labelling obs in plots if provided,
+              otherwise constructed from ref_col, var, units.
+            - ``verify_label`` (str): used for labelling model in plots if provided,
+              otherwise constructed from verify_col, var, units.
+            - ``kwargs``: options to pass to `pandas.read_{kind}` method.
+
+        Returns:
+            - VeriFrame instance.
+
+        """
+        verify_kw = {"ref_col": ref_col, "verify_col": verify_col}
+        if var is not None:
+            verify_kw.update({"var": var})
+        if circular is not None:
+            verify_kw.update({"circular": circular})
+        if ref_label is not None:
+            verify_kw.update({"ref_label": ref_label})
+        if verify_label is not None:
+            verify_kw.update({"verify_label": verify_label})
+
+        if columns == "all":
+            variables = ["*"]
+        elif columns == "minimum":
+            variables = ["lon", "lat", ref_col, verify_col]
+        elif isinstance(columns, (list, tuple)):
+            variables = list(columns)
+        else:
+            raise ValueError(
+                "Columns must be one of 'minimum', 'all' or a list of columns."
+            )
+
+        gbqalt = GBQAlt(dset=dset, variables=variables, project_id=project_id)
+        df = gbqalt.get()
         return cls(df, **verify_kw)
 
 
@@ -1290,7 +1432,7 @@ def plot_map(
     coastline=False,
     layer="BlueMarble_ShadedRelief_Bathymetry",
     cmap="jet",
-    **kwargs
+    **kwargs,
 ):
     """Plot map of obs location.
 
@@ -1354,7 +1496,7 @@ def plot_map(
         try:
             ax.add_wmts("http://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi", layer)
         except ValueError:
-            print("Layer {} is only available in cartopy>=0.16".format(layer))
+            print(f"Layer {layer} is only available in cartopy>=0.16")
             raise
     elif isinstance(layer, xr.DataArray):
         layer = layer.sel(lon=slice(lonmin, lonmax), lat=slice(latmin, latmax))
@@ -1583,7 +1725,7 @@ class VeriFrameMulti(VeriFrame):
         return self._multi_plot_obs("plot_cdf", ax=ax, **kwargs)
 
     def plot_set(self, map_buff=20):
-        logging.info("   Plotting set ... ")
+        logger.info("   Plotting set ... ")
         nmods = len(self.verify_cols)
         nr = max(nmods + 1, 3)
         nc = 3
@@ -1621,7 +1763,7 @@ class VeriFrameMulti(VeriFrame):
         return
 
     def plot_set_scatter_density(self, map_buff=20):
-        logging.info("   Plotting set scatter density... ")
+        logger.info("   Plotting set scatter density... ")
         nmods = len(self.verify_cols)
         nr = 2 + int(np.ceil(nmods / 3.0))
         nc = 3
@@ -1663,33 +1805,11 @@ class VeriFrameMulti(VeriFrame):
 
 if __name__ == "__main__":
 
-    # from verify.core.veriframe import VeriFrame, VeriFrameMulti
-    import pandas as pd
-    from onverify.veriframe import VeriFrame
+    # from onverify.veriframe import VeriFrame
+    pkl = "/source/paper-swan-st6/data/altverify/nweuro/new/weuro_st6_03_debias097/colocs/201601.pkl"
 
-    df = pd.read_pickle("../tests/sample_files/collocs.pkl")
-    df["hs_mod2"] = df["hs_mod"] * 2
-
-    vf = VeriFrame(df, ref_col="hs_obs", verify_col="hs_mod", var="hs")
-    # vfm = VeriFrameMulti(df, ref_col="hs_obs", verify_cols=["hs_mod", "hs_mod2"])
-
-    # # import matplotlib.pyplot as plt
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
-    # # vfm.plot_cdf(ax=ax, alpha=0.6)
-    # vfm.plot_set()
-
-    # # tmp = vfm.iloc[0:100]
-    # # print tmp.verify_cols, tmp.verify_labels
-    # # import matplotlib.pyplot as plt
-    # # plt.figure()
-    # # tmp.plot_timeseries()
-    # plt.show()
-    # # from verify.core.tests.data import create_test_data
-    # # df = create_test_data(n=20, nmod=1)
-    # # df['obs'] *= 360
-    # # df['m1'] *= 360
-    # # # vf = VeriFrame(df, verify_col='m1')
-    # # vf = VeriFrame(df, ref_col='obs', verify_col='m1')
-    # # # vf.plot_scatter()
-    # # # plt.show()
+    # df = pd.read_pickle(pkl)
+    # vf = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
+    # vf = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
+    vf = VeriFrame.from_file(filename=pkl, kind="pickle")
+    dset = vf.gridstats(boxsize=0.5)

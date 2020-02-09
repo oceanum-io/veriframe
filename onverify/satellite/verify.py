@@ -22,7 +22,7 @@ from scipy.stats import mstats
 from onverify.site_base import Verify as VerifyBase
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
-from onverify.io.gcs import open_netcdf
+from onverify.io.file import open_netcdf
 from oncore.dataio import get
 
 # from verify.core.calc_nrt_pairs import load_nrt
@@ -292,12 +292,20 @@ class Verify(VerifyBase):
             self.model_lon_converted = False  # Just so we can convert back later on
 
         # Constrain model to prescribed rectangle
+        x0, x1 = self.model[self.lonname][[0, -1]].values
+        y0, y1 = self.model[self.latname][[0, -1]].values
         self.model = self.model.sel(
             **{
                 self.latname: slice(self.latmin, self.latmax),
                 self.lonname: slice(self.lonmin, self.lonmax),
             }
         )
+        if self.model[self.lonname].size == 0 or self.model[self.latname].size == 0:
+            raise ValueError(
+                f"The model bounds are lon=({x0}, {x1}), lat=({y0}, {y1}) but you are "
+                f"trying to slice between lon=({self.lonmin}, {self.lonmax}), "
+                f"lat=({self.latmin}, {self.latmax}). Not going to work!"
+            )
 
         # Determine relevant data attributes
         dsettime = self.model.time.to_pandas()
@@ -758,30 +766,6 @@ class Verify(VerifyBase):
         """Write matchups to pkl"""
         self.logger.info("    Writing colocs to %s" % outfile)
         self.df.to_pickle(outfile)
-
-    def loadColocs(self, fglob, subset=None):
-        if isinstance(fglob, list):
-            filelist = fglob
-        else:
-            filelist = sorted(glob(fglob))
-        self.logger.info("Loading colocs %s \n" % "\n\t".join(filelist))
-
-        self.df = None
-        for fname in filelist:
-            print(" Reading %s" % fname)
-            if self.df is None:
-                if subset is None:
-                    self.df = pd.read_pickle(fname)
-                else:
-                    self.df = pd.read_pickle(fname)[subset]
-            else:
-                if subset is None:
-                    self.df = self.df.append(pd.read_pickle(fname))
-                else:
-                    self.df = self.df.append(pd.read_pickle(fname)[subset])
-
-        self.obsname = "obs"
-        self.modname = "model"
 
     def loadColocs(self, fglob, subset=None):
         if isinstance(fglob, list):
@@ -1293,13 +1277,29 @@ class VerifyGBQ(Verify):
         )
         self.project_id = project_id
 
+    @property
+    def gbq_fields(self):
+        """The GBQ fields to write."""
+        try:
+            fields = ["time"] + list(self.df.columns)
+        except:
+            fields = GBQFIELDS
+        return fields
+
     def loadObs(self, interval=timedelta(hours=24), dropvars=None):
         self.logger.info("Loading observations")
 
         obsnames = {"hs": "swh", "wndsp": "wind_speed_alt_calibrated"}
         obsvar = obsnames[self.modvar]
         obsq = GBQAlt(dset=self.obsregex, project_id=self.project_id)
-        obsq.get(self.t0, self.t1)
+        obsq.get(
+            start=self.t0,
+            end=self.t1,
+            x0=self.lonmin or self.modlonmin,
+            x1=self.lonmax or self.modlonmax,
+            y0=self.latmin or self.modlatmin,
+            y1=self.latmax or self.modlatmax
+        )
         self.obs = obsq.df
         self.obs.set_index("time", inplace=True)
 
@@ -1317,13 +1317,16 @@ class VerifyGBQ(Verify):
 
     def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
         import pandas_gbq
-
         pandas_gbq.to_gbq(
-            self.df.reset_index()[GBQFIELDS], table, project_id=project_id, if_exists=if_exists, **kwargs
+            self.df.reset_index()[self.gbq_fields],
+            table,
+            project_id=project_id,
+            if_exists=if_exists,
+            **kwargs
         )
 
     def loadColocs(self, start=None, end=None, dset="wave.test"):
-        obsq = GBQAlt(dset=dset, variables=GBQFIELDS, project_id=self.project_id)
+        obsq = GBQAlt(dset=dset, variables=self.gbq_fields, project_id=self.project_id)
         obsq.get(start, end)
         self.df = obsq.df
         self.df.set_index("time", inplace=True)
@@ -1430,10 +1433,33 @@ def test():
 if __name__ == "__main__" and __package__ is None:
     # test()
     logging.basicConfig(level=logging.INFO)
-    from os import sys, path
+    fname = "/scratch/weuro-test.nc"
+    dset = "oceanum-prod.cersat.data"
+    project_id = "oceanum-prod"
+    v = VerifyGBQ(
+        obsdset=dset,
+        project_id="oceanum-prod",
+        model_vars=["xwnd", "ywnd", "hs", "tps", "tm02", "dpm", "depth"],
+        modvar="hs",
+        lonmin=-10.75,
+        lonmax=-10.25,
+        latmin=48.75,
+        latmax=49.25,
+    )
+    v.loadModel(fname)
+    v.loadObs()
+    v.interpModel()
+    v.createColocs()
+    # v.saveColocs(
+    #     "wave.test",
+    #     project_id='oceanum-dev',
+    #     if_exists='append'
+    # )
 
-    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-    Parser()
+    # from os import sys, path
+
+    # sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+    # Parser()
 
 
 """
