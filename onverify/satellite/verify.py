@@ -292,12 +292,20 @@ class Verify(VerifyBase):
             self.model_lon_converted = False  # Just so we can convert back later on
 
         # Constrain model to prescribed rectangle
+        x0, x1 = self.model[self.lonname][[0, -1]].values
+        y0, y1 = self.model[self.latname][[0, -1]].values
         self.model = self.model.sel(
             **{
                 self.latname: slice(self.latmin, self.latmax),
                 self.lonname: slice(self.lonmin, self.lonmax),
             }
         )
+        if self.model[self.lonname].size == 0 or self.model[self.latname].size == 0:
+            raise ValueError(
+                f"The model bounds are lon=({x0}, {x1}), lat=({y0}, {y1}) but you are "
+                f"trying to slice between lon=({self.lonmin}, {self.lonmax}), "
+                f"lat=({self.latmin}, {self.latmax}). Not going to work!"
+            )
 
         # Determine relevant data attributes
         dsettime = self.model.time.to_pandas()
@@ -1287,10 +1295,10 @@ class VerifyGBQ(Verify):
         obsq.get(
             start=self.t0,
             end=self.t1,
-            x0=self.modlonmin,
-            x1=self.modlonmax,
-            y0=self.modlatmin,
-            y1=self.modlatmax
+            x0=self.lonmin or self.modlonmin,
+            x1=self.lonmax or self.modlonmax,
+            y0=self.latmin or self.modlatmin,
+            y1=self.latmax or self.modlatmax
         )
         self.obs = obsq.df
         self.obs.set_index("time", inplace=True)
@@ -1432,17 +1440,21 @@ if __name__ == "__main__" and __package__ is None:
         obsdset=dset,
         project_id="oceanum-prod",
         model_vars=["xwnd", "ywnd", "hs", "tps", "tm02", "dpm", "depth"],
-        modvar="hs"
+        modvar="hs",
+        lonmin=-10.75,
+        lonmax=-10.25,
+        latmin=48.75,
+        latmax=49.25,
     )
     v.loadModel(fname)
     v.loadObs()
     v.interpModel()
     v.createColocs()
-    v.saveColocs(
-        "wave.test",
-        project_id='oceanum-dev',
-        if_exists='append'
-    )
+    # v.saveColocs(
+    #     "wave.test",
+    #     project_id='oceanum-dev',
+    #     if_exists='append'
+    # )
 
     # from os import sys, path
 
