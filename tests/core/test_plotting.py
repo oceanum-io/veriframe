@@ -4,11 +4,11 @@ import datetime
 import pandas as pd
 import logging
 import matplotlib.pyplot as plt
-from onverify.core.veriframe import VeriFrame, VeriFrameMulti
+from onverify.veriframe import VeriFrame, VeriFrameMulti
 from onverify.core.taylorDiagram import df2taylor
 from create_test_data import create_test_data, create_test_data_sin
 
-savepdf=True
+savepdf=False
 if savepdf:
     from matplotlib.backends.backend_pdf import PdfPages
     plt.switch_backend('pdf')
@@ -76,6 +76,7 @@ class TestVerifySingle(unittest.TestCase):
     def test_contour_regression(self):
         ax = self.v.plot_density_contour()
         self.v.add_regression(ax)
+        self.v.add_stats(ax=ax, loc='lower right')
         ax.set_title('test_contour_regression')
         if savepdf: self.pdf_pages.savefig()
 
