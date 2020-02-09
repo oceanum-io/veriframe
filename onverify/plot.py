@@ -87,6 +87,7 @@ def creat_plots_from_gbq(dset, project_id, **kwargs):
         kwargs: kwarg options to pass on to create_plots.
 
     """
+    logger.info("Reading colocs from GBQ.")
     vf = VeriFrame.from_gbq(dset=dset, project_id=project_id, columns="minimum")
     return create_plots(vf, **kwargs)
 
@@ -114,6 +115,7 @@ def create_plots(vf, plotdir="./plots", boxsize=2, binsize=0.2, proj="Robinson")
 
     vf.stats = ["bias", "rmsd", "si", "n"]
     dset = vf.gridstats(boxsize=0.5)
+    dset.to_netcdf(os.path.join(plotdir, "grid_stats.nc"))
 
     # Stats table
     vf.stats_table(outfile=os.path.join(plotdir, "stats_table.txt"))
@@ -233,7 +235,7 @@ def create_plots(vf, plotdir="./plots", boxsize=2, binsize=0.2, proj="Robinson")
 
 if __name__ == "__main__":
 
-    logger.setLevel("info")
+    logger.setLevel("INFO")
 
     dset = "wave.weuro_st6_03_debia097"
     project_id = "oceanum-dev"
