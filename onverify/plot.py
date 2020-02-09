@@ -16,15 +16,6 @@ from onverify.veriframe import VeriFrame
 logger = logging.getLogger(__name__)
 
 
-def load_colocs(start=None, end=None, dset="wave.test"):
-    obsq = GBQAlt(dset=dset, variables=self.gbq_fields, project_id=self.project_id)
-    obsq.get(start, end)
-    self.df = obsq.df
-    self.df.set_index("time", inplace=True)
-    self.obsname = "obs"
-    self.modname = "model"
-
-
 def plot_gridded_stat(
     darr,
     vmin,
@@ -59,7 +50,7 @@ def plot_gridded_stat(
     cbar = plt.colorbar(
         pobj,
         cax=cax,
-        orientation='horizontal',
+        orientation="horizontal",
         label=label,
         # ticks=np.arange(-0.4, 0.5, 0.1)
     )
@@ -69,12 +60,12 @@ def plot_gridded_stat(
         posn = ax.get_position()
         cax.set_position([posn.x0, posn.y0 - 0.1, posn.width, 0.04])
 
-    fig.canvas.mpl_connect('resize_event', resize_colobar)
+    fig.canvas.mpl_connect("resize_event", resize_colobar)
 
     # Axis settings
     ax.coastlines(resolution=resolution, color="black", facecolor="black")
     land = cfeature.LAND.with_scale(resolution)
-    ax.add_feature(land, facecolor='0.8', zorder=10)
+    ax.add_feature(land, facecolor="0.8", zorder=10)
 
     gl = ax.gridlines(draw_labels=True)
     gl.xlabels_top = False
@@ -98,14 +89,9 @@ def creat_plots_from_gbq(dset, project_id, **kwargs):
     """
     vf = VeriFrame.from_gbq(dset=dset, project_id=project_id, columns="minimum")
     return create_plots(vf, **kwargs)
-    
-def create_plots(
-    vf,
-    plotdir="./plots",
-    boxsize=2,
-    binsize=0.2,
-    proj="Robinson",
-):
+
+
+def create_plots(vf, plotdir="./plots", boxsize=2, binsize=0.2, proj="Robinson"):
     """Standard plots of colocations.
 
     Args:
@@ -143,7 +129,9 @@ def create_plots(
     # Density / regression
     logger.info("Plotting density scatter with regression")
     fig, ax = plt.subplots(1, 1, figsize=(7, 7))
-    vf.plot_density_contour(ax=ax, colorbar=False, binsize=binsize, cmap=cmocean.cm.thermal)
+    vf.plot_density_contour(
+        ax=ax, colorbar=False, binsize=binsize, cmap=cmocean.cm.thermal
+    )
     vf.plot_regression(ax=ax, color="red", linewidth=1)
     vf.add_stats(ax=ax)
     vf.add_regression(ax=ax, loc=4, show_n=False)
