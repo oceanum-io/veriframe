@@ -230,7 +230,7 @@ def create_plots(
     plot_gridded_stat(
         dset["nobs"],
         vmin=0,
-        vmax=1000,
+        vmax=None,
         cmap=cmocean.cm.dense,
         projection=ccrs.PlateCarree(),
         resolution="50m",
