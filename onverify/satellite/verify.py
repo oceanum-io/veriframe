@@ -1430,10 +1430,33 @@ def test():
 if __name__ == "__main__" and __package__ is None:
     # test()
     logging.basicConfig(level=logging.INFO)
-    from os import sys, path
+    fname = "/scratch/glob-20120101T00.nc"
+    dset = "oceanum-prod.cersat.data"
+    project_id = "oceanum-prod"
+    v = VerifyGBQ(
+        obsdset=dset,
+        project_id="oceanum-prod",
+        model_vars=["xwnd", "ywnd", "hs", "tps", "tm02", "dpm", "depth"],
+        modvar="hs",
+        lonmin=-10.75,
+        lonmax=-10.25,
+        latmin=48.75,
+        latmax=49.25,
+    )
+    v.loadModel(fname)
+    v.loadObs()
+    v.interpModel()
+    v.createColocs()
+    # v.saveColocs(
+    #     "wave.test",
+    #     project_id='oceanum-dev',
+    #     if_exists='append'
+    # )
 
-    sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-    Parser()
+    # from os import sys, path
+
+    # sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+    # Parser()
 
 
 """
