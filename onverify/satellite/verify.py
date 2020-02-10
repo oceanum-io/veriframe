@@ -1287,7 +1287,7 @@ class VerifyGBQ(Verify):
         return fields
 
     def loadObs(
-        self, interval=timedelta(hours=24), dropvars=None, use_bqstorage_api=False
+        self, interval=timedelta(hours=24), dropvars=None, use_bqstorage_api=True
     ):
         self.logger.info("Loading observations")
 
@@ -1332,8 +1332,13 @@ class VerifyGBQ(Verify):
             **kwargs,
         )
 
-    def loadColocs(self, start=None, end=None, dset="wave.test"):
-        obsq = GBQAlt(dset=dset, variables=self.gbq_fields, project_id=self.project_id)
+    def loadColocs(self, start=None, end=None, dset="wave.test", use_bqstorage_api=True):
+        obsq = GBQAlt(
+            dset=dset,
+            variables=self.gbq_fields,
+            project_id=self.project_id,
+            use_bqstorage_api=use_bqstorage_api,
+        )
         obsq.get(start, end)
         self.df = obsq.df
         self.df.set_index("time", inplace=True)
@@ -1439,7 +1444,8 @@ def test():
 if __name__ == "__main__" and __package__ is None:
     # test()
     logging.basicConfig(level=logging.INFO)
-    fname = "/scratch/glob-20120101T00.nc"
+    # fname = "/scratch/glob-20120101T00.nc"
+    fname = "/scratch/weuro-test.nc"
     dset = "oceanum-prod.cersat.data"
     project_id = "oceanum-prod"
     v = VerifyGBQ(
