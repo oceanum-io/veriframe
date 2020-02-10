@@ -1439,11 +1439,7 @@ def test():
 if __name__ == "__main__" and __package__ is None:
     # test()
     logging.basicConfig(level=logging.INFO)
-<<<<<<< HEAD
     fname = "/scratch/glob-20120101T00.nc"
-=======
-    fname = "/scratch/weuro-test.nc"
->>>>>>> 227700ebba8c62ecce6c2acf7894edd519d8d435
     dset = "oceanum-prod.cersat.data"
     project_id = "oceanum-prod"
     v = VerifyGBQ(
