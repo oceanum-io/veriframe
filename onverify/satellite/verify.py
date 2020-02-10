@@ -281,7 +281,6 @@ class Verify(VerifyBase):
         if self._is_360(lon_range) == self._is_360(self.model[self.lonname].values):
             self.model = self.model.sel(**slicing_dict)
         else:
-            import ipdb; ipdb.set_trace()
             if self._is_180(lon_range):
                 left, right = 0, 360
             else:
