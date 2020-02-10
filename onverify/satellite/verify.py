@@ -670,7 +670,7 @@ class Verify(VerifyBase):
             "N",
         ):
             ds[stat] = (("lat", "lon"), self.stats_grid[stat])
-        ds.to_netcdf(outnc, engine='scipy')
+        ds.to_netcdf(outnc, engine="scipy")
 
     def plotGriddedStats(
         self,
@@ -680,7 +680,7 @@ class Verify(VerifyBase):
         title=False,
         smoothfac=False,
         scalefactor=1,
-        **kwargs
+        **kwargs,
     ):
         """
         Plots requested statistic
@@ -803,7 +803,7 @@ class VerifyNRT(Verify):
         latmax=None,
         lonmin=None,
         lonmax=None,
-        **kwargs
+        **kwargs,
     ):
         obsregex = obsregex or "/net/diskserver1/volume1/data/obs/ifremer/*%Y%m%d*.nc"
         super(VerifyNRT, self).__init__(
@@ -815,7 +815,7 @@ class VerifyNRT(Verify):
             latmax=latmax,
             lonmin=lonmin,
             lonmax=lonmax,
-            **kwargs
+            **kwargs,
         )
 
     def loadObs(self, interval=timedelta(hours=24), dropvars=None):
@@ -969,7 +969,7 @@ class VerifyNRTraw(Verify):
         latmax=None,
         lonmin=None,
         lonmax=None,
-        **kwargs
+        **kwargs,
     ):
         # not exactly obsregex, here the path to the folder with the missions is used
         obsregex = obsregex or "/net/datastor1/data/obs/altimetry/"
@@ -984,7 +984,7 @@ class VerifyNRTraw(Verify):
             latmax=latmax,
             lonmin=lonmin,
             lonmax=lonmax,
-            **kwargs
+            **kwargs,
         )
 
     def loadObs(self,):
@@ -1040,7 +1040,7 @@ def plotMap(
     proj="Robinson",
     clon=None,
     clat=None,
-    **kwargs
+    **kwargs,
 ):
     if clon == None:
         clon = (lons.min() + lons.max()) / 2.0
@@ -1147,7 +1147,7 @@ def createPlots(
     ncglob=None,
     hdfglob=None,
     dset=None,
-    project_id='oceanum-dev',
+    project_id="oceanum-dev",
     plotdir="./plots",
     boxsize=2,
     vmin=0,
@@ -1156,12 +1156,12 @@ def createPlots(
     clat=None,
     clon=None,
     scalefactor=1,
-    **kwargs
+    **kwargs,
 ):
     logging.info("Saving output to %s" % plotdir)
     if not os.path.isdir(plotdir):
         os.makedirs(plotdir)
-    if sum([ncglob==None, hdfglob==None, dset==None]) < 2:
+    if sum([ncglob == None, hdfglob == None, dset == None]) < 2:
         raise Exception("Only specify one of ncglob, hdfglob or dset")
     if not ncglob and not hdfglob and not dset:
         raise Exception("Need to specify one of ncglob, hdfglob or dest")
@@ -1180,7 +1180,7 @@ def createPlots(
     verif.modlabel = "Modelled $H_s$"
     ax = verif.plot_contour(cmap="jet")
     verif.add_regression(ax)
-    #verif.add_stats(ax=ax, loc='lower right')
+    # verif.add_stats(ax=ax, loc='lower right')
     pos, step = verif.add_stats(ax)
     pos[1] = step
     pos[0] = 0.6 * ax.get_xlim()[1]
@@ -1214,7 +1214,7 @@ def calcColocs(
     dropna=True,
     pool=1,
     plot_kwargs=None,
-    **kwargs
+    **kwargs,
 ):
     logger = configure_logging()
     if not os.path.isdir(outdir):
@@ -1234,7 +1234,7 @@ def calcColocs(
                 overwrite=overwrite,
                 dropna=dropna,
                 plot_kwargs=plot_kwargs,
-                **kwargs
+                **kwargs,
             )
     else:
         p = Pool(pool)
@@ -1245,7 +1245,7 @@ def calcColocs(
             overwrite=overwrite,
             dropna=dropna,
             plot_kwargs=plot_kwargs,
-            **kwargs
+            **kwargs,
         )
         p.map(func, flist)
 
@@ -1262,7 +1262,7 @@ class VerifyGBQ(Verify):
         latmax=None,
         lonmin=None,
         lonmax=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             logger=logging,
@@ -1273,7 +1273,7 @@ class VerifyGBQ(Verify):
             latmax=latmax,
             lonmin=lonmin,
             lonmax=lonmax,
-            **kwargs
+            **kwargs,
         )
         self.project_id = project_id
 
@@ -1286,19 +1286,25 @@ class VerifyGBQ(Verify):
             fields = GBQFIELDS
         return fields
 
-    def loadObs(self, interval=timedelta(hours=24), dropvars=None):
+    def loadObs(
+        self, interval=timedelta(hours=24), dropvars=None, use_bqstorage_api=False
+    ):
         self.logger.info("Loading observations")
 
         obsnames = {"hs": "swh", "wndsp": "wind_speed_alt_calibrated"}
         obsvar = obsnames[self.modvar]
-        obsq = GBQAlt(dset=self.obsregex, project_id=self.project_id)
+        obsq = GBQAlt(
+            dset=self.obsregex,
+            project_id=self.project_id,
+            use_bqstorage_api=use_bqstorage_api,
+        )
         obsq.get(
             start=self.t0,
             end=self.t1,
             x0=self.lonmin or self.modlonmin,
             x1=self.lonmax or self.modlonmax,
             y0=self.latmin or self.modlatmin,
-            y1=self.latmax or self.modlatmax
+            y1=self.latmax or self.modlatmax,
         )
         self.obs = obsq.df
         self.obs.set_index("time", inplace=True)
@@ -1315,14 +1321,15 @@ class VerifyGBQ(Verify):
             self.logger.debug("Correcting obs lons to 0-360 range")
             self.obs.lon %= 360
 
-    def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
+    def saveColocs(self, table, if_exists="append", project_id="oceanum-dev", **kwargs):
         import pandas_gbq
+
         pandas_gbq.to_gbq(
             self.df.reset_index()[self.gbq_fields],
             table,
             project_id=project_id,
             if_exists=if_exists,
-            **kwargs
+            **kwargs,
         )
 
     def loadColocs(self, start=None, end=None, dset="wave.test"):
@@ -1347,7 +1354,6 @@ class VerifyGBQ(Verify):
         # super().loadModel(local)
 
 
-
 def calcColocsFile(
     fname,
     cla=Verify,
@@ -1355,7 +1361,7 @@ def calcColocsFile(
     overwrite=False,
     dropna=True,
     plot_kwargs=None,
-    **kwargs
+    **kwargs,
 ):
     # try:
     print(fname)
