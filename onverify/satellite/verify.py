@@ -19,6 +19,9 @@ from cartopy.mpl.gridliner import LATITUDE_FORMATTER, LONGITUDE_FORMATTER
 from scipy.ndimage import map_coordinates
 from scipy.stats import mstats
 
+from retrying import retry
+from pandas_gbq.gbq import to_gbq, GenericGBQException
+
 from onverify.site_base import Verify as VerifyBase
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
@@ -31,6 +34,18 @@ plt.rcParams["image.cmap"] = "viridis"
 
 GBQFIELDS = ["time", "lat", "lon", "obs", "model"]
 
+RETRY_KWARGS = dict(
+    wait_exponential_multiplier=1000,
+    wait_exponential_max=10000,
+    stop_max_attempt_number=5
+)
+
+WIND_COMPONENT_NAMES = [
+    ["ugrd10m", "vgrd10m"],
+    ["uwnd", "vwnd"],
+    ["xwnd", "ywnd"],
+    ["u10", "v10"]
+]
 
 class CustomFormatter(
     argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
@@ -482,26 +497,19 @@ class Verify(VerifyBase):
         directional_vars = {"dp", "dir"}
         for modelvar in self.model_vars:
             self.logger.info("Interpolating model variable: %s" % (modelvar))
-            if modelvar == "wndsp" and {"ugrd10m", "vgrd10m"}.issubset(
-                self.model.var()
-            ):
-                self.model[modelvar] = np.sqrt(
-                    self.model.ugrd10m ** 2 + self.model.vgrd10m ** 2
-                )
-            elif modelvar == "wndsp" and {"uwnd", "vwnd"}.issubset(self.model.var()):
-                self.model[modelvar] = np.sqrt(
-                    self.model.uwnd ** 2 + self.model.vwnd ** 2
-                )
-            elif modelvar == "wndsp" and {"u10", "v10"}.issubset(self.model.var()):
-                self.model[modelvar] = np.sqrt(
-                    self.model.u10 ** 2 + self.model.v10 ** 2
-                )
+            if modelvar == "wndsp":
+                for names in WIND_COMPONENT_NAMES:
+                    if set(names).issubset(self.model.var()):
+                        self.model[modelvar] = np.sqrt(
+                            self.model[names[0]]**2 + self.model[names[1]]**2
+                        )
+                    continue
             elif modelvar == "cur" and {"ucur", "vcur"}.issubset(self.model.var()):
                 self.model[modelvar] = np.sqrt(
                     self.model.ucur ** 2 + self.model.vcur ** 2
                 )
             elif modelvar not in self.model.data_vars:
-                self.logger.warn(
+                self.logger.warning(
                     "%s not in model dataset, skipping interpolation" % (modelvar)
                 )
                 continue
@@ -1357,9 +1365,9 @@ class VerifyGBQ(Verify):
             self.logger.debug("Correcting obs lons to 0-360 range")
             self.obs.lon %= 360
 
+    @retry(retry_on_exception=GenericGBQException, **RETRY_KWARGS)
     def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
-        import pandas_gbq
-        pandas_gbq.to_gbq(
+        to_gbq(
             self.df.reset_index()[self.gbq_fields],
             table,
             project_id=project_id,
@@ -1481,8 +1489,8 @@ if __name__ == "__main__" and __package__ is None:
     v = VerifyGBQ(
         obsdset=dset,
         project_id="oceanum-prod",
-        model_vars=["xwnd", "ywnd", "hs", "tps", "tm02", "dpm", "depth"],
-        modvar="hs",
+        model_vars=["wndsp", "hs", "tps", "dpm", "botl"],
+        modvar="wndsp",
         lonmin=170.0,
         lonmax=190.0,
         latmin=48.5,
