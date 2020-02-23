@@ -249,16 +249,6 @@ class Verify(VerifyBase):
         self.interpModel()
         self.createColocs()
 
-    # def _to_180(self, ds):
-    #     """Convert longitudes in grid from 0-360 to -180--180 convention."""
-    #     ds[self.lonname].values = (ds[self.lonname].values + 180) % 360 - 180
-    #     return ds.sortby(self.lonname)
-
-    # def _to_360(self, ds):
-    #     """Convert longitudes array -180--180 to 0-360 convention."""
-    #     ds[self.lonname].values = ds[self.lonname].values % 360
-    #     return ds.sortby(self.lonname)
-
     def _swap_longitude_convention(self, longitudes):
         """Swap longitudes between 0 -- 360 and -180 -- 180 conventions."""
         if self._is_180(longitudes):
