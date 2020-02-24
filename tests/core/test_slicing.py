@@ -2,7 +2,7 @@ import os
 import pytest
 import pandas as pd
 
-from onverify.core.veriframe import VeriFrame, VeriFrameMulti
+from onverify.veriframe import VeriFrame, VeriFrameMulti
 
 FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          '../sample_files')

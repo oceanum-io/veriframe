@@ -3,7 +3,7 @@ import pytest
 import datetime
 import pandas as pd
 
-from onverify.core.veriframe import VeriFrame
+from onverify.veriframe import VeriFrame
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILES_DIR = os.path.join(HERE, '../sample_files')

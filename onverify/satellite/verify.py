@@ -19,6 +19,9 @@ from cartopy.mpl.gridliner import LATITUDE_FORMATTER, LONGITUDE_FORMATTER
 from scipy.ndimage import map_coordinates
 from scipy.stats import mstats
 
+from retrying import retry
+from pandas_gbq.gbq import to_gbq, GenericGBQException
+
 from onverify.site_base import Verify as VerifyBase
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
@@ -31,6 +34,18 @@ plt.rcParams["image.cmap"] = "viridis"
 
 GBQFIELDS = ["time", "lat", "lon", "obs", "model"]
 
+RETRY_KWARGS = dict(
+    wait_exponential_multiplier=1000,
+    wait_exponential_max=10000,
+    stop_max_attempt_number=5
+)
+
+WIND_COMPONENT_NAMES = [
+    ["ugrd10m", "vgrd10m"],
+    ["uwnd", "vwnd"],
+    ["xwnd", "ywnd"],
+    ["u10", "v10"]
+]
 
 class CustomFormatter(
     argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
@@ -234,15 +249,57 @@ class Verify(VerifyBase):
         self.interpModel()
         self.createColocs()
 
-    def _to_180(self, ds):
-        """Convert longitudes in grid from 0-360 to -180--180 convention."""
-        ds[self.lonname].values = (ds[self.lonname].values + 180) % 360 - 180
-        return ds.sortby(self.lonname)
+    def _swap_longitude_convention(self, longitudes):
+        """Swap longitudes between 0 -- 360 and -180 -- 180 conventions."""
+        if self._is_180(longitudes):
+            return longitudes % 360
+        elif self._is_360(longitudes):
+            longitudes[longitudes > 180] = longitudes[longitudes > 180] - 360
+        return longitudes
 
-    def _to_360(self, ds):
-        """Convert longitudes in grid from -180--180 to 0-360 convention."""
-        ds[self.lonname].values = ds[self.lonname].values % 360
-        return ds.sortby(self.lonname)
+    def _is_180(self, array):
+        """True if longitudes are in -180 -- 180 convention."""
+        if array.min() < 0 and array.max() <= 180:
+            return True
+        return False
+
+    def _is_360(self, array):
+        """True if longitudes are in -180 -- 180 convention."""
+        if array.min() >= 0 and array.max() <= 360:
+            return True
+        return False
+
+    def _sel_model(self):
+        """Slice model area taking care of longitude wrapping and inverted latitudes."""
+        lon_range = np.array([self.lonmin, self.lonmax])
+        lat_range = np.array([self.latmin, self.latmax])
+
+        # ERA5 has latitude in descending order
+        if self.model[self.latname][0] > self.model[self.latname][1]:
+            lat_range = lat_range[::-1]
+
+        slicing_dict = {
+            self.latname: slice(*lat_range), self.lonname: slice(*lon_range)
+        }
+
+        # Take care of longitude wrapping inconsistencies
+        if self._is_360(lon_range) == self._is_360(self.model[self.lonname].values):
+            self.model = self.model.sel(**slicing_dict)
+        else:
+            if self._is_180(lon_range):
+                left, right = 0, 360
+            else:
+                left, right = -180, 180
+            # Left interval
+            lon_range = self._swap_longitude_convention(lon_range)
+            slicing_dict[self.lonname] = slice(lon_range[0], right)
+            dsout = self.model.sel(**slicing_dict)
+            # Right interval
+            slicing_dict[self.lonname] = slice(left, lon_range[1])
+            self.model = xr.concat((dsout, self.model.sel(**slicing_dict)), dim=self.lonname)
+            self.model[self.lonname].values = self._swap_longitude_convention(
+                self.model[self.lonname].values
+            )
 
     def loadModel(self, ncglob):
         ncfiles = glob(ncglob)
@@ -271,6 +328,11 @@ class Verify(VerifyBase):
 
     def _check_model_data(self):
 
+        if (self.lonmin is None) != (self.lonmax is None):
+            raise NotImplementedError(
+                "Either provide both (lonmin, lonmax) or neither of them."
+            )
+
         # Different in WW3 and SWAN
         if "latitude" in self.model.dims.keys():
             self.latname = "latitude"
@@ -279,27 +341,12 @@ class Verify(VerifyBase):
             self.latname = "lat"
             self.lonname = "lon"
 
-        # ERA5 has latitude in descending order
-        if self.model[self.latname][0] > self.model[self.latname][1]:
-            self.model = self.model.sortby(self.latname)
-
-        # Ensure crossing longitudes will be taken care of
-        if self.model[self.lonname].min() < 0 and self.model[self.lonname].max() > 180:
-            self.logger.debug("Correcting model lons to 0-360 range")
-            self.model = self._to_180(self.model)
-            self.model_lon_converted = True
-        else:
-            self.model_lon_converted = False  # Just so we can convert back later on
-
         # Constrain model to prescribed rectangle
         x0, x1 = self.model[self.lonname][[0, -1]].values
         y0, y1 = self.model[self.latname][[0, -1]].values
-        self.model = self.model.sel(
-            **{
-                self.latname: slice(self.latmin, self.latmax),
-                self.lonname: slice(self.lonmin, self.lonmax),
-            }
-        )
+        self._sel_model()
+
+        # ensure bbox is within model grid
         if self.model[self.lonname].size == 0 or self.model[self.latname].size == 0:
             raise ValueError(
                 f"The model bounds are lon=({x0}, {x1}), lat=({y0}, {y1}) but you are "
@@ -440,26 +487,19 @@ class Verify(VerifyBase):
         directional_vars = {"dp", "dir"}
         for modelvar in self.model_vars:
             self.logger.info("Interpolating model variable: %s" % (modelvar))
-            if modelvar == "wndsp" and {"ugrd10m", "vgrd10m"}.issubset(
-                self.model.var()
-            ):
-                self.model[modelvar] = np.sqrt(
-                    self.model.ugrd10m ** 2 + self.model.vgrd10m ** 2
-                )
-            elif modelvar == "wndsp" and {"uwnd", "vwnd"}.issubset(self.model.var()):
-                self.model[modelvar] = np.sqrt(
-                    self.model.uwnd ** 2 + self.model.vwnd ** 2
-                )
-            elif modelvar == "wndsp" and {"u10", "v10"}.issubset(self.model.var()):
-                self.model[modelvar] = np.sqrt(
-                    self.model.u10 ** 2 + self.model.v10 ** 2
-                )
+            if modelvar == "wndsp":
+                for names in WIND_COMPONENT_NAMES:
+                    if set(names).issubset(self.model.var()):
+                        self.model[modelvar] = np.sqrt(
+                            self.model[names[0]]**2 + self.model[names[1]]**2
+                        )
+                    continue
             elif modelvar == "cur" and {"ucur", "vcur"}.issubset(self.model.var()):
                 self.model[modelvar] = np.sqrt(
                     self.model.ucur ** 2 + self.model.vcur ** 2
                 )
             elif modelvar not in self.model.data_vars:
-                self.logger.warn(
+                self.logger.warning(
                     "%s not in model dataset, skipping interpolation" % (modelvar)
                 )
                 continue
@@ -1321,10 +1361,9 @@ class VerifyGBQ(Verify):
             self.logger.debug("Correcting obs lons to 0-360 range")
             self.obs.lon %= 360
 
-    def saveColocs(self, table, if_exists="append", project_id="oceanum-dev", **kwargs):
-        import pandas_gbq
-
-        pandas_gbq.to_gbq(
+    @retry(retry_on_exception=GenericGBQException, **RETRY_KWARGS)
+    def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
+        to_gbq(
             self.df.reset_index()[self.gbq_fields],
             table,
             project_id=project_id,
@@ -1444,19 +1483,18 @@ def test():
 if __name__ == "__main__" and __package__ is None:
     # test()
     logging.basicConfig(level=logging.INFO)
-    # fname = "/scratch/glob-20120101T00.nc"
-    fname = "/scratch/weuro-test.nc"
+    fname = "/scratch/glob-20120101T00.nc"
     dset = "oceanum-prod.cersat.data"
     project_id = "oceanum-prod"
     v = VerifyGBQ(
         obsdset=dset,
         project_id="oceanum-prod",
-        model_vars=["xwnd", "ywnd", "hs", "tps", "tm02", "dpm", "depth"],
-        modvar="hs",
-        lonmin=-10.75,
-        lonmax=-10.25,
-        latmin=48.75,
-        latmax=49.25,
+        model_vars=["wndsp", "hs", "tps", "dpm", "botl"],
+        modvar="wndsp",
+        lonmin=170.0,
+        lonmax=190.0,
+        latmin=48.5,
+        latmax=55.5,
     )
     v.loadModel(fname)
     v.loadObs()

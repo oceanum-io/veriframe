@@ -25,6 +25,7 @@ requirements = [
     "fsspec",
     "gcsfs",
     "pandas-gbq",
+    "retrying",
     "cartopy",
     "netcdf4",
     "h5netcdf",
