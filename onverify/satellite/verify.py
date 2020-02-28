@@ -1361,7 +1361,7 @@ class VerifyGBQ(Verify):
             self.logger.debug("Correcting obs lons to 0-360 range")
             self.obs.lon %= 360
 
-    @retry(retry_on_exception=GenericGBQException, **RETRY_KWARGS)
+    @retry(**RETRY_KWARGS)
     def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
         to_gbq(
             self.df.reset_index()[self.gbq_fields],
