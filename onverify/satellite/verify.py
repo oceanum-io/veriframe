@@ -344,6 +344,10 @@ class Verify(VerifyBase):
         # Constrain model to prescribed rectangle
         x0, x1 = self.model[self.lonname][[0, -1]].values
         y0, y1 = self.model[self.latname][[0, -1]].values
+        self.lonmin = self.lonmin or x0
+        self.lonmax = self.lonmax or x1
+        self.latmin = self.latmin or y0
+        self.latmax = self.latmax or y1
         self._sel_model()
 
         # ensure bbox is within model grid
@@ -515,7 +519,7 @@ class Verify(VerifyBase):
             self.mod_interp.update({modelvar: ret.astype("float32")})
         return
 
-    def createColocs(self, dropna=True):
+    def createColocs(self, dropna=True, drop_duplicates=True):
         self.df = self.obs
         for modelvar, modeldata in self.mod_interp.items():
             self.df["m_" + modelvar] = modeldata
@@ -524,6 +528,8 @@ class Verify(VerifyBase):
                 self.df["model"] = modeldata
         if dropna:
             self.df.dropna(inplace=True)
+        if drop_duplicates:
+            self.df.drop_duplicates(inplace=True)
         if not self.test:
             del self.obs
             del self.model
@@ -1510,10 +1516,3 @@ if __name__ == "__main__" and __package__ is None:
 
     # sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
     # Parser()
-
-
-"""
-To test command line interface, try:
-
-    python2 altverify.py /net/datastor1/data/wave/med/ww3_0.1_st4/med20001001_00z.nc
-"""
