@@ -1202,6 +1202,8 @@ def createPlots(
     clat=None,
     clon=None,
     scalefactor=1,
+    start=None,
+    end=None,
     **kwargs,
 ):
     logging.info("Saving output to %s" % plotdir)
@@ -1213,7 +1215,7 @@ def createPlots(
         raise Exception("Need to specify one of ncglob, hdfglob or dest")
     if dset:
         verif = VerifyGBQ(project_id=project_id, **kwargs)
-        verif.loadColocs(dset=dset)
+        verif.loadColocs(start=start, end=end, dset=dset)
     else:
         verif = Verify(**kwargs)
         if ncglob:
