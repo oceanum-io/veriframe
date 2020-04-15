@@ -1,6 +1,9 @@
-from onverify.satellite.verify import VerifyGBQ
-from onverify.satellite.verify import createPlots
+import datetime
+
 import matplotlib.pyplot as plt
+
+from onverify.satellite.verify import VerifyGBQ, createPlots
+
 
 def test_gbq():
     dset="oceanum-prod.cersat.data"
@@ -18,10 +21,12 @@ def test_gbq():
     # plt.show()
 
 def test_plot():
-    dset="wave.test2"
-    project_id="oceanum-dev",
+    dset="wave.glob05_era5_prod"
+    project_id="oceanum-dev"
+    start = datetime.datetime(2000, 1, 1)
+    end = datetime.datetime(2000, 1, 10)
     v = VerifyGBQ(project_id=project_id)
-    v.loadColocs(dset=dset)
+    v.loadColocs(start=start, end=end, dset=dset)
     v.calcGriddedStats(2)
     v.plotGriddedStats('bias', vmin=-0.5, vmax=0.5, clon=0,
                         clat=-90, proj='Orthographic')
