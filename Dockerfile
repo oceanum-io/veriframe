@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/oceanum/docker/core-ubuntu
+FROM registry.gitlab.com/oceanum/docker/core-ubuntu:v0.1.2
 MAINTAINER Tom Durrant <t.durrant@oceanum.science>
 
 RUN echo "--------------- Installing packages ---------------" &&\
