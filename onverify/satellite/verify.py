@@ -32,7 +32,8 @@ from oncore.dataio import get
 
 plt.rcParams["image.cmap"] = "viridis"
 
-GBQFIELDS = ["time", "lat", "lon", "obs", "model"]
+COREFIELDS = ["time", "lat", "lon", "satellite"]
+COLOCFIELDS = COREFIELDS + ["obs", "model"]
 
 RETRY_KWARGS = dict(
     wait_exponential_multiplier=1000,
@@ -1061,12 +1062,12 @@ def statsDict(group):
     stats["modstd"] = group.model.std()
     stats["obsstd"] = group.obs.std()
     stats["N"] = group.shape[0]
-    stats["bias"] = bias(group, "obs", "model")
+    stats["bias"] = bias(group.obs, group.model)
     stats["nbias"] = stats["bias"] / stats["modmean"]
     stats["std"] = (group.model - group.obs).std()
-    stats["rmsd"] = rmsd(group, "obs", "model")
+    stats["rmsd"] = rmsd(group.obs, group.model)
     stats["nrmsd"] = stats["rmsd"] / stats["modmean"]
-    stats["si"] = si(group, "obs", "model")
+    stats["si"] = si(group.obs, group.model)
     stats["r"] = np.corrcoef(group.obs, group.model)[0, 1]
     P = np.arange(0, 1, 0.01)
     Qx = mstats.mquantiles(group.obs, P)
@@ -1331,7 +1332,7 @@ class VerifyGBQ(Verify):
         try:
             fields = ["time"] + list(self.df.columns)
         except:
-            fields = GBQFIELDS
+            fields = COLOCFIELDS
         return fields
 
     def loadObs(
@@ -1339,9 +1340,10 @@ class VerifyGBQ(Verify):
     ):
         self.logger.info("Loading observations")
 
-        obsnames = {"hs": "swh", "wndsp": "wind_speed_alt_calibrated"}
-        obsvar = obsnames[self.modvar]
+        obsnames = {"hs": "swh_adjusted", "wndsp": "wind_speed_alt_calibrated"}
+        self.obsvar = obsnames[self.modvar]
         obsq = GBQAlt(
+            variables= COREFIELDS + [self.obsvar],
             dset=self.obsregex,
             project_id=self.project_id,
             use_bqstorage_api=use_bqstorage_api,
@@ -1362,7 +1364,7 @@ class VerifyGBQ(Verify):
         # (obs.lat < self.modlatmax) &
         # is_lons_in(obs.lon, self.modlonmin, self.modlonmax)]
         # self.obs.set_index('time',inplace=True)
-        self.obs.rename(columns={obsvar: "obs"}, inplace=True)
+        self.obs.rename(columns={self.obsvar: "obs"}, inplace=True)
 
         # Ensure obs is same range as model, but only if model has not been converted yet
         if self.model[self.lonname].min() >= 0 and self.model[self.lonname].max() > 180:
@@ -1378,6 +1380,38 @@ class VerifyGBQ(Verify):
             if_exists=if_exists,
             **kwargs,
         )
+
+    @retry(**RETRY_KWARGS)
+    def saveStats(self, table, time=None, if_exists='append', project_id="oceanum-dev", **kwargs):
+        if not hasattr(self, "stats"):
+            self.calcStats()
+        self.logger.info("    Writing stats to %s" % table)
+        dfs = []
+        nn = 0
+        for key, items in self.stats.items():
+            tmp = pd.DataFrame(items, index=[nn])
+            if time:
+                tmp['time'] = time
+            tmp['satellite'] = key
+            dfs.append(tmp)
+            nn += 1
+        stats = pd.concat(dfs)
+        to_gbq(
+            stats.reset_index(),
+            table,
+            project_id=project_id,
+            if_exists=if_exists,
+            **kwargs,
+        )
+
+    # def saveStats(self, outfile):
+        # if not hasattr(self, "stats"):
+            # self.calcStats()
+        # if hasattr(self, "stats"):
+            # self.logger.info("    Writing stats to %s" % outfile)
+            # self.stats.to_json(outfile)
+        # else:
+            # self.logger.warning("    No stats to save ...")
 
     def loadColocs(self, start=None, end=None, dset="wave.test", use_bqstorage_api=True):
         obsq = GBQAlt(

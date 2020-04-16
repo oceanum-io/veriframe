@@ -1,13 +1,14 @@
 import datetime
 
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from onverify.satellite.verify import VerifyGBQ, createPlots
 
 
 def test_gbq():
     dset="oceanum-prod.cersat.data"
-    project_id="oceanum-prod",
+    project_id="oceanum-prod"
     v = VerifyGBQ(obsdset=dset, project_id=project_id)
     v.loadModel('/home/tdurrant/Downloads/ww3_glob05_grids_glob-20120101T00.nc')
     v.loadObs()
@@ -32,9 +33,18 @@ def test_plot():
                         clat=-90, proj='Orthographic')
     plt.show()
 
+def test_write_stats():
+    dset="wave.glob05_era5_prod"
+    project_id="oceanum-dev"
+    start = datetime.datetime(2000, 1, 1)
+    end = datetime.datetime(2000, 1, 2)
+    v = VerifyGBQ(project_id=project_id)
+    v.loadColocs(start=start, end=end, dset=dset)
+    v.saveStats('test-stats')
+
 def test_full():
     dset="oceanum-prod.cersat.data"
-    project_id="oceanum-prod",
+    project_id="oceanum-prod"
     v = VerifyGBQ(obsdset=dset, project_id=project_id)
     v.loadModel('gs://oceanum-data-dev/ww3/glob3_era5/grids/glob3-20111201T00.nc')
     # v.loadModel('gs://oceanum-data-dev/ww3/glob05/grids/glob-20120101T00.nc')
@@ -48,7 +58,8 @@ def test_full():
     v.obsname = 'obs'
     v.modname = 'model'
     v.plot_scatter()
-    v.saveColocs('wave.test2', project_id='oceanum-dev')
+    #v.saveColocs('wave.test2.colocs', project_id='oceanum-dev')
+    v.saveStats('wave.test2-stats', time=datetime(2011, 12, 1), project_id='oceanum-dev')
     #plt.show()
 
 def test_createplots():
