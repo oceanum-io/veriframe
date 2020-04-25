@@ -27,6 +27,7 @@ from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
 from onverify.io.file import open_netcdf
 from oncore.dataio import get
+from ontake.ontake import Ontake
 
 # from verify.core.calc_nrt_pairs import load_nrt
 
@@ -38,15 +39,16 @@ COLOCFIELDS = COREFIELDS + ["obs", "model"]
 RETRY_KWARGS = dict(
     wait_exponential_multiplier=1000,
     wait_exponential_max=10000,
-    stop_max_attempt_number=5
+    stop_max_attempt_number=5,
 )
 
 WIND_COMPONENT_NAMES = [
     ["ugrd10m", "vgrd10m"],
     ["uwnd", "vwnd"],
     ["xwnd", "ywnd"],
-    ["u10", "v10"]
+    ["u10", "v10"],
 ]
+
 
 class CustomFormatter(
     argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
@@ -280,7 +282,8 @@ class Verify(VerifyBase):
             lat_range = lat_range[::-1]
 
         slicing_dict = {
-            self.latname: slice(*lat_range), self.lonname: slice(*lon_range)
+            self.latname: slice(*lat_range),
+            self.lonname: slice(*lon_range),
         }
 
         # Take care of longitude wrapping inconsistencies
@@ -297,7 +300,9 @@ class Verify(VerifyBase):
             dsout = self.model.sel(**slicing_dict)
             # Right interval
             slicing_dict[self.lonname] = slice(left, lon_range[1])
-            self.model = xr.concat((dsout, self.model.sel(**slicing_dict)), dim=self.lonname)
+            self.model = xr.concat(
+                (dsout, self.model.sel(**slicing_dict)), dim=self.lonname
+            )
             self.model[self.lonname].values = self._swap_longitude_convention(
                 self.model[self.lonname].values
             )
@@ -496,7 +501,7 @@ class Verify(VerifyBase):
                 for names in WIND_COMPONENT_NAMES:
                     if set(names).issubset(self.model.var()):
                         self.model[modelvar] = np.sqrt(
-                            self.model[names[0]]**2 + self.model[names[1]]**2
+                            self.model[names[0]] ** 2 + self.model[names[1]] ** 2
                         )
                     continue
             elif modelvar == "cur" and {"ucur", "vcur"}.issubset(self.model.var()):
@@ -572,7 +577,7 @@ class Verify(VerifyBase):
         timedelta -- timedelta object
         """
         return ((timedelta.days) * 24.0 + (timedelta.seconds / 3600.0)) / (
-            self.tstep.seconds / 3600.0
+            self.tstep.total_seconds() / 3600.0
         )
 
     def calcGriddedStats(self, boxsize, latedges=None, lonedges=None):
@@ -1340,10 +1345,10 @@ class VerifyGBQ(Verify):
     ):
         self.logger.info("Loading observations")
 
-        obsnames = {"hs": "swh_adjusted", "wndsp": "wind_speed_alt_calibrated"}
+        obsnames = {"hs": "swh_adjusted", "wndsp": "wind_speed_cor"}
         self.obsvar = obsnames[self.modvar]
         obsq = GBQAlt(
-            variables= COREFIELDS + [self.obsvar],
+            variables=COREFIELDS + [self.obsvar],
             dset=self.obsregex,
             project_id=self.project_id,
             use_bqstorage_api=use_bqstorage_api,
@@ -1372,7 +1377,7 @@ class VerifyGBQ(Verify):
             self.obs.lon %= 360
 
     @retry(**RETRY_KWARGS)
-    def saveColocs(self, table, if_exists='append', project_id="oceanum-dev", **kwargs):
+    def saveColocs(self, table, if_exists="append", project_id="oceanum-dev", **kwargs):
         to_gbq(
             self.df.reset_index()[self.gbq_fields],
             table,
@@ -1382,7 +1387,9 @@ class VerifyGBQ(Verify):
         )
 
     @retry(**RETRY_KWARGS)
-    def saveStats(self, table, time=None, if_exists='append', project_id="oceanum-dev", **kwargs):
+    def saveStats(
+        self, table, time=None, if_exists="append", project_id="oceanum-dev", **kwargs
+    ):
         if not hasattr(self, "stats"):
             self.calcStats()
         self.logger.info("    Writing stats to %s" % table)
@@ -1391,8 +1398,8 @@ class VerifyGBQ(Verify):
         for key, items in self.stats.items():
             tmp = pd.DataFrame(items, index=[nn])
             if time:
-                tmp['time'] = time
-            tmp['satellite'] = key
+                tmp["time"] = time
+            tmp["satellite"] = key
             dfs.append(tmp)
             nn += 1
         stats = pd.concat(dfs)
@@ -1404,16 +1411,9 @@ class VerifyGBQ(Verify):
             **kwargs,
         )
 
-    # def saveStats(self, outfile):
-        # if not hasattr(self, "stats"):
-            # self.calcStats()
-        # if hasattr(self, "stats"):
-            # self.logger.info("    Writing stats to %s" % outfile)
-            # self.stats.to_json(outfile)
-        # else:
-            # self.logger.warning("    No stats to save ...")
-
-    def loadColocs(self, start=None, end=None, dset="wave.test", use_bqstorage_api=True):
+    def loadColocs(
+        self, start=None, end=None, dset="wave.test", use_bqstorage_api=True
+    ):
         obsq = GBQAlt(
             dset=dset,
             variables=self.gbq_fields,
@@ -1438,6 +1438,38 @@ class VerifyGBQ(Verify):
         self._check_model_data()
         # local = get(fname, "./")
         # super().loadModel(local)
+
+
+class VerifyZarr(VerifyGBQ):
+    def loadModel(
+        self,
+        dset,
+        start,
+        end,
+        namespace="hindcast",
+        master_url="gs://oceanum-catalog/oceanum.yml",
+        latmax=None,
+        latmin=None,
+        lonmin=None,
+        lonmax=None,
+    ):
+        self.logger.info("Loading zarr model data from {}".format(dset))
+        ot = Ontake(master_url=master_url, namespace="hindcast")
+        metadata = ot.dataset(dset)
+        latres = metadata.latitude[1] - metadata.latitude[0]
+        lonres = metadata.longitude[1] - metadata.longitude[0]
+        self.model = (
+            ot.dataset(dset)
+            .sel(
+                # latitude=slice(self.latmin-latres, self.latmax+latres),
+                # longitude=slice(self.lonmin-latres, self.lonmax+lonres),
+                time=slice(start, end),
+            )
+            # .load()
+        )
+        dsettime = self.model.time.to_pandas()
+        self._check_model_data()
+        self.model.load()
 
 
 def calcColocsFile(
