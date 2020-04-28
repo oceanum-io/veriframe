@@ -1441,35 +1441,49 @@ class VerifyGBQ(Verify):
 
 
 class VerifyZarr(VerifyGBQ):
-    def loadModel(
+    def __init__(
         self,
-        dset,
+        moddset,
         start,
         end,
+        *args,
         namespace="hindcast",
         master_url="gs://oceanum-catalog/oceanum.yml",
-        latmax=None,
-        latmin=None,
-        lonmin=None,
-        lonmax=None,
+        **kwargs,
     ):
-        self.logger.info("Loading zarr model data from {}".format(dset))
-        ot = Ontake(master_url=master_url, namespace="hindcast")
-        metadata = ot.dataset(dset)
+        super().__init__(self, *args, **kwargs)
+        self.moddset = moddset
+        self.start = start
+        self.end = end
+        self.namespace = namespace
+        self.master_url = master_url
+
+    def loadModel(self,):
+        self.logger.info(f"Loading zarr model data from {self.moddset}")
+        ot = Ontake(master_url=self.master_url, namespace=self.namespace)
+        metadata = ot.dataset(self.moddset)
         latres = metadata.latitude[1] - metadata.latitude[0]
         lonres = metadata.longitude[1] - metadata.longitude[0]
         self.model = (
-            ot.dataset(dset)
-            .sel(
+            ot.dataset(self.moddset).sel(
                 # latitude=slice(self.latmin-latres, self.latmax+latres),
                 # longitude=slice(self.lonmin-latres, self.lonmax+lonres),
-                time=slice(start, end),
+                time=slice(self.start, self.end),
             )
             # .load()
         )
         dsettime = self.model.time.to_pandas()
         self._check_model_data()
         self.model.load()
+
+    def __call__(self):
+        self.loadModel()
+        self.loadObs()
+        self.interpModel()
+        self.createColocs()
+        self.calcGriddedStats(2)
+        self.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
+
 
 
 def calcColocsFile(
@@ -1561,14 +1575,14 @@ if __name__ == "__main__" and __package__ is None:
     # dset = "oceanum-prod.cersat.data"
     # project_id = "oceanum-prod"
     # v = VerifyGBQ(
-        # obsdset=dset,
-        # project_id="oceanum-prod",
-        # model_vars=["wndsp", "hs", "tps", "dpm", "botl"],
-        # modvar="wndsp",
-        # lonmin=170.0,
-        # lonmax=190.0,
-        # latmin=48.5,
-        # latmax=55.5,
+    # obsdset=dset,
+    # project_id="oceanum-prod",
+    # model_vars=["wndsp", "hs", "tps", "dpm", "botl"],
+    # modvar="wndsp",
+    # lonmin=170.0,
+    # lonmax=190.0,
+    # latmin=48.5,
+    # latmax=55.5,
     # )
     # v.loadModel(fname)
     # v.loadObs()

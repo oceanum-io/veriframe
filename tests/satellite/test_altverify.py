@@ -38,20 +38,17 @@ def test_zarr():
         latmax=-10,
         lonmin=120,
         lonmax=175,
-    )
-    v.loadModel(
-        moddset,
-        datetime(2012, 1, 1),
-        datetime(2012, 1, 12),
+        moddset=moddset,
+        start=datetime(2012, 1, 1),
+        end=datetime(2012, 1, 12),
         master_url=master_url,
     )
+    v.loadModel()
     v.loadObs()
     v.interpModel()
     v.createColocs()
     v.calcGriddedStats(2)
-    v.plotGriddedStats(
-        "bias", vmin=-2.0, vmax=2.0, proj="PlateCarree"
-    )
+    v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
     plt.show()
 
 
