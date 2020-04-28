@@ -1555,25 +1555,25 @@ def test():
 
 
 if __name__ == "__main__" and __package__ is None:
-    # test()
-    logging.basicConfig(level=logging.INFO)
-    fname = "/scratch/glob-20120101T00.nc"
-    dset = "oceanum-prod.cersat.data"
-    project_id = "oceanum-prod"
-    v = VerifyGBQ(
-        obsdset=dset,
-        project_id="oceanum-prod",
-        model_vars=["wndsp", "hs", "tps", "dpm", "botl"],
-        modvar="wndsp",
-        lonmin=170.0,
-        lonmax=190.0,
-        latmin=48.5,
-        latmax=55.5,
-    )
-    v.loadModel(fname)
-    v.loadObs()
-    v.interpModel()
-    v.createColocs()
+    # # test()
+    # logging.basicConfig(level=logging.INFO)
+    # fname = "/scratch/glob-20120101T00.nc"
+    # dset = "oceanum-prod.cersat.data"
+    # project_id = "oceanum-prod"
+    # v = VerifyGBQ(
+        # obsdset=dset,
+        # project_id="oceanum-prod",
+        # model_vars=["wndsp", "hs", "tps", "dpm", "botl"],
+        # modvar="wndsp",
+        # lonmin=170.0,
+        # lonmax=190.0,
+        # latmin=48.5,
+        # latmax=55.5,
+    # )
+    # v.loadModel(fname)
+    # v.loadObs()
+    # v.interpModel()
+    # v.createColocs()
     # v.saveColocs(
     #     "wave.test",
     #     project_id='oceanum-dev',
@@ -1583,4 +1583,4 @@ if __name__ == "__main__" and __package__ is None:
     # from os import sys, path
 
     # sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
-    # Parser()
+    Parser()

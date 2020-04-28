@@ -50,7 +50,7 @@ def test_zarr():
     v.createColocs()
     v.calcGriddedStats(2)
     v.plotGriddedStats(
-        "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+        "bias", vmin=-2.0, vmax=2.0, proj="PlateCarree"
     )
     plt.show()
 
