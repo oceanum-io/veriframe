@@ -30,6 +30,7 @@ from oncore.dataio import get
 from ontake.ontake import Ontake
 
 # from verify.core.calc_nrt_pairs import load_nrt
+logging.basicConfig(level=logging.INFO)
 
 plt.rcParams["image.cmap"] = "viridis"
 
