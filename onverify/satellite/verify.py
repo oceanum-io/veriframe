@@ -200,6 +200,11 @@ class Verify(VerifyBase):
         lonmin=None,
         lonmax=None,
         logger=logging,
+        boxsize=2,
+        proj="PlateCarree",
+        clat=0,
+        scalefactor=1,
+        **kwargs,
     ):
         """
         - model_vars :: model variables to interpolate onto colocs
@@ -219,6 +224,10 @@ class Verify(VerifyBase):
             self.modvar = model_vars[0]
 
         self.units = "m"
+        self.boxsize = boxsize
+        self.proj = proj
+        self.clat = clat
+        self.scalefactor = scalefactor
 
         self.latmin = latmin
         self.latmax = latmax
@@ -239,12 +248,17 @@ class Verify(VerifyBase):
         self.modlonmin = []
         self.modlonmax = []
 
-        # filled in loadObs()
-        self.altnames = []
-        self.obs = []
+        # # filled in loadObs()
+        # self.altnames = []
+        # self.obs = []
 
-        # filled in calcColocs() or loadColocs()
-        self.df = []
+        # # filled in calcColocs() or loadColocs()
+        # self.df = []
+        self.loadModel()
+        self.loadObs()
+        self.interpModel()
+        df = self.createColocs()
+        super().__init__(df, modname="model", **kwargs)
 
     def calcColocs(self, ncglob, dropvars=None):
         self.loadModel(ncglob)
@@ -526,19 +540,20 @@ class Verify(VerifyBase):
         return
 
     def createColocs(self, dropna=True, drop_duplicates=True):
-        self.df = self.obs
+        df = self.obs
         for modelvar, modeldata in self.mod_interp.items():
-            self.df["m_" + modelvar] = modeldata
+            df["m_" + modelvar] = modeldata
             if modelvar == self.modvar:
                 # duplicated column to make changing vars easy without modifying much code
-                self.df["model"] = modeldata
+                df["model"] = modeldata
         if dropna:
-            self.df.dropna(inplace=True)
+            df.dropna(inplace=True)
         if drop_duplicates:
-            self.df.drop_duplicates(inplace=True)
+            df.drop_duplicates(inplace=True)
         if not self.test:
             del self.obs
             del self.model
+        return df
 
     def _calc_interp_indeces(self):
         """ Calculates the indices that need to be interpolated to
@@ -580,12 +595,12 @@ class Verify(VerifyBase):
             self.tstep.total_seconds() / 3600.0
         )
 
-    def calcGriddedStats(self, boxsize, latedges=None, lonedges=None):
+    def calcGriddedStats(self, boxsize=None, latedges=None, lonedges=None):
         """
         Calculate the stats for each grid point of given box size (lat/lon)
         """
         self.logger.info("    Calculating gridded statistics...")
-        self.boxsize = boxsize
+        self.boxsize = boxsize or self.boxsize
 
         lat = self.df.lat
         lon = self.df.lon
@@ -602,22 +617,26 @@ class Verify(VerifyBase):
 
         if latedges is None:
             minlat, maxlat = (
-                lat.min() + (abs(lat.min()) % boxsize),
-                lat.max() - (abs(lat.min()) % boxsize),
+                lat.min() + (abs(lat.min()) % self.boxsize),
+                lat.max() - (abs(lat.min()) % self.boxsize),
             )
             # minlat, maxlat = lat.min(), lat.max()
-            lats = np.arange(minlat + boxsize / 2.0, maxlat + boxsize / 2.0, boxsize)
+            lats = np.arange(
+                minlat + self.boxsize / 2.0, maxlat + self.boxsize / 2.0, self.boxsize
+            )
             nlats = lats.size
-            latedges = np.arange(minlat, maxlat + boxsize, boxsize)
+            latedges = np.arange(minlat, maxlat + self.boxsize, self.boxsize)
 
         if lonedges is None:
             minlon, maxlon = (
-                lon.min() + (abs(lon.min()) % boxsize),
-                lon.max() - (abs(lon.min()) % boxsize),
+                lon.min() + (abs(lon.min()) % self.boxsize),
+                lon.max() - (abs(lon.min()) % self.boxsize),
             )
-            lons = np.arange(minlon + boxsize / 2.0, maxlon + boxsize / 2.0, boxsize)
+            lons = np.arange(
+                minlon + self.boxsize / 2.0, maxlon + self.boxsize / 2.0, self.boxsize
+            )
             nlons = lons.size
-            lonedges = np.arange(minlon, maxlon + boxsize, boxsize)
+            lonedges = np.arange(minlon, maxlon + self.boxsize, self.boxsize)
 
         dt = np.dtype(
             [
@@ -842,6 +861,38 @@ class Verify(VerifyBase):
 
         self.obsname = "obs"
         self.modname = "model"
+
+    def standard_plots(self):
+        super().standard_plots()
+        self.calcGriddedStats(self.boxsize)
+        self.plotGriddedStats(
+            "bias", proj=self.proj, clat=self.clat, scalefactor=self.scalefactor
+        )
+        if self.plotdir:
+            plt.savefig(os.path.join(self.plotdir, "gridbias.png"), bbox_inches="tight")
+        self.plotGriddedStats(
+            "rmsd", proj=self.proj, clat=self.clat, scalefactor=self.scalefactor
+        )
+        if self.plotdir:
+            plt.savefig(os.path.join(self.plotdir, "gridrmsd.png"), bbox_inches="tight")
+        self.plotGriddedStats("si", proj=self.proj, clat=self.clat)
+        if self.plotdir:
+            plt.savefig(os.path.join(self.plotdir, "gridsi.png"), bbox_inches="tight")
+        self.plotGriddedStats("nrmsd", proj=self.proj, clat=self.clat)
+        if self.plotdir:
+            plt.savefig(
+                os.path.join(self.plotdir, "gridnrmsd.png"), bbox_inches="tight"
+            )
+        self.plotGriddedStats("nbias", proj=self.proj, clat=self.clat)
+        if self.plotdir:
+            plt.savefig(
+                os.path.join(self.plotdir, "gridnbias.png"), bbox_inches="tight"
+            )
+        self.plotGriddedStats("N", proj=self.proj, clat=self.clat)
+        if self.plotdir:
+            plt.savefig(os.path.join(self.plotdir, "gridN.png"), bbox_inches="tight")
+        if self.plotdir:
+            self.saveGriddedStats(os.path.join(self.plotdir, "gridded_stats.nc"))
 
 
 class VerifyNRT(Verify):
@@ -1318,6 +1369,7 @@ class VerifyGBQ(Verify):
         lonmax=None,
         **kwargs,
     ):
+        self.project_id = project_id
         super().__init__(
             logger=logging,
             obsregex=obsdset,
@@ -1329,7 +1381,6 @@ class VerifyGBQ(Verify):
             lonmax=lonmax,
             **kwargs,
         )
-        self.project_id = project_id
 
     @property
     def gbq_fields(self):
@@ -1451,12 +1502,12 @@ class VerifyZarr(VerifyGBQ):
         master_url="gs://oceanum-catalog/oceanum.yml",
         **kwargs,
     ):
-        super().__init__(self, *args, **kwargs)
         self.moddset = moddset
         self.start = start
         self.end = end
         self.namespace = namespace
         self.master_url = master_url
+        super().__init__(self, *args, **kwargs)
 
     def loadModel(self,):
         self.logger.info(f"Loading zarr model data from {self.moddset}")
@@ -1481,9 +1532,8 @@ class VerifyZarr(VerifyGBQ):
         self.loadObs()
         self.interpModel()
         self.createColocs()
-        self.calcGriddedStats(2)
-        self.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
-
+        self.calcGriddedStats()
+        self.standard_plots()
 
 
 def calcColocsFile(
