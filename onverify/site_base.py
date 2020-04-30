@@ -327,7 +327,7 @@ class Verify(object):
         )
         return tb
 
-    def standard_plots(self):
+    def standard_plots(self, color='r'):
         if self.plotdir:
             logging.info("Saving output to %s" % self.plotdir)
             os.makedirs(self.plotdir, exist_ok=True)
@@ -339,8 +339,10 @@ class Verify(object):
         self.add_regression(ax, print_pos=pos)
         if self.plotdir:
             plt.savefig(os.path.join(self.plotdir, "propden.png"), bbox_inches="tight")
-        ax = self.plot_qq(increment=0.01, color="k")
-        self.plot_qq(increment=0.1, color="r", ax=ax)
+        ax = self.plot_qq(increment=0.001, color=color, alpha=0.1, label="0.1 % increments")
+        self.plot_qq(increment=0.01, color=color, ax=ax, alpha=0.2, label="1 % increments")
+        self.plot_qq(increment=0.1, color=color, ax=ax, alpha=1.0, label="10 % increments")
+        plt.legend()
 
         if self.plotdir:
             plt.savefig(os.path.join(self.plotdir, "qq.png"), bbox_inches="tight")
