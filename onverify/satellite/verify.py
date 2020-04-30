@@ -192,6 +192,7 @@ class Parser(object):
 class Verify(VerifyBase):
     def __init__(
         self,
+        ncglob,
         obsregex=None,
         test=False,
         modvar=None,
@@ -213,6 +214,7 @@ class Verify(VerifyBase):
         self.logger = logger
         self.test = test
 
+        self.ncglob = ncglob
         self.obsregex = obsregex or "/net/datastor1/data/obs/cersat/%Y/wm_%Y%m%d.nc"
 
         if not model_vars:
@@ -255,17 +257,14 @@ class Verify(VerifyBase):
 
         # # filled in calcColocs() or loadColocs()
         # self.df = []
-        self.loadModel()
-        self.loadObs()
-        self.interpModel()
-        df = self.createColocs()
+        df = self.calcColocs()
         super().__init__(df, modname="model", **kwargs)
 
-    def calcColocs(self, ncglob, dropvars=None):
-        self.loadModel(ncglob)
+    def calcColocs(self, dropvars=None):
+        self.loadModel()
         self.loadObs(dropvars=dropvars)
         self.interpModel()
-        self.createColocs()
+        return self.createColocs()
 
     def _swap_longitude_convention(self, longitudes):
         """Swap longitudes between 0 -- 360 and -180 -- 180 conventions."""
@@ -322,8 +321,8 @@ class Verify(VerifyBase):
                 self.model[self.lonname].values
             )
 
-    def loadModel(self, ncglob):
-        ncfiles = glob(ncglob)
+    def loadModel(self):
+        ncfiles = glob(self.ncglob)
         infonc = xr.open_dataset(ncfiles[0])
         extra_vars = {
             "uwnd",
@@ -337,7 +336,7 @@ class Verify(VerifyBase):
         }  # vector variables can be built later
         excluded = set(infonc.data_vars) - self.model_vars - extra_vars
 
-        self.logger.info("Loading model data %s \n" % "\n\t".join(glob(ncglob)))
+        self.logger.info("Loading model data %s \n" % "\n\t".join(glob(self.ncglob)))
         model = xr.open_mfdataset(ncfiles, drop_variables=excluded, engine="netcdf4")
         if self.test:
             self.logger.info(" Using first 10 timesteps only")
@@ -1359,6 +1358,7 @@ def calcColocs(
 class VerifyGBQ(Verify):
     def __init__(
         self,
+        ncglob,
         logger=logging,
         obsdset="oceanum-prod.cersat.data",
         project_id="oceanum-prod",
@@ -1372,6 +1372,7 @@ class VerifyGBQ(Verify):
     ):
         self.project_id = project_id
         super().__init__(
+            ncglob,
             logger=logging,
             obsregex=obsdset,
             test=test,
@@ -1478,9 +1479,9 @@ class VerifyGBQ(Verify):
         self.obsname = "obs"
         self.modname = "model"
 
-    def loadModel(self, fname):
-        self.logger.info("Loading model data {}".format(fname))
-        model = open_netcdf(fname)
+    def loadModel(self):
+        self.logger.info("Loading model data {}".format(self.ncglob))
+        model = open_netcdf(self.ncglob)
         if self.test:
             self.logger.info(" Using first 10 timesteps only")
             model = model.isel(time=slice(None, 10))
@@ -1490,6 +1491,10 @@ class VerifyGBQ(Verify):
         self._check_model_data()
         # local = get(fname, "./")
         # super().loadModel(local)
+
+    def __call__(self):
+        self.calcGriddedStats()
+        self.standard_plots()
 
 
 class VerifyZarr(VerifyGBQ):
@@ -1528,13 +1533,50 @@ class VerifyZarr(VerifyGBQ):
         self._check_model_data()
         self.model.load()
 
-    def __call__(self):
-        self.loadModel()
-        self.loadObs()
-        self.interpModel()
-        self.createColocs()
-        self.calcGriddedStats()
-        self.standard_plots()
+
+class VerifyDAP(VerifyGBQ):
+    def __init__(
+        self, start, end, *args, **kwargs,
+    ):
+        self.start = start
+        self.end = end
+        super().__init__(*args, **kwargs)
+
+
+    def loadModel(self):
+        if not isinstance(self.ncglob, list):
+            ncfiles = [self.ncglob]
+        else:
+            ncfiles = self.ncglob
+        infonc = xr.open_dataset(ncfiles[0])
+        extra_vars = {
+            "uwnd",
+            "vwnd",
+            "ugrd10m",
+            "vgrd10m",
+            "ucur",
+            "vcur",
+            "u10",
+            "v10",
+        }  # vector variables can be built later
+        excluded = set(infonc.data_vars) - self.model_vars - extra_vars
+        latres = infonc.lat[1] - infonc.lat[0]
+        lonres = infonc.lon[1] - infonc.lon[0]
+
+        self.logger.info("Loading model data %s \n" % "\n\t".join(ncfiles))
+        model = (
+            xr.open_mfdataset(ncfiles, drop_variables=excluded, engine="netcdf4")
+            .sel(
+                lat=slice(self.latmin - latres, self.latmax + latres),
+                lon=slice(self.lonmin - latres, self.lonmax + lonres),
+                time=slice(self.start, self.end),
+            )
+            .load()
+        )
+        dsettime = model.time.to_pandas()
+        inodup = np.where(dsettime.duplicated() == False)[0]
+        self.model = model.isel(time=inodup)
+        self._check_model_data()
 
 
 def calcColocsFile(

@@ -4,7 +4,13 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import logging
 
-from onverify.satellite.verify import VerifyGBQ, createPlots, VerifyZarr
+from onverify.satellite.verify import (
+    VerifyGBQ,
+    createPlots,
+    VerifyZarr,
+    Verify,
+    VerifyDAP,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -12,41 +18,62 @@ logging.basicConfig(level=logging.INFO)
 def test_gbq():
     dset = "oceanum-prod.cersat.data"
     project_id = "oceanum-prod"
-    v = VerifyGBQ(obsdset=dset, project_id=project_id)
-    v.loadModel("/home/tdurrant/Downloads/ww3_glob05_grids_glob-20120101T00.nc")
-    v.loadObs()
-    v.interpModel()
-    v.createColocs()
-    # v.calcGriddedStats(2)
+    modfile = (
+        "gs://oceanum-data-dev/ww3/glob05_era5_prod/output/grid/glob-20120101T00.nc"
+    )
+    v = VerifyGBQ(modfile, obsdset=dset, project_id=project_id, test=True)
+    v.calcGriddedStats(2)
     # # v.saveGriddedStats('out.nc')
-    # v.plotGriddedStats('bias', vmin=-0.5, vmax=0.5, clon=0,
-    # clat=-90, proj='Orthographic')
-    v.saveColocs("wave.test", project_id="oceanum-dev")
+    v.plotGriddedStats(
+        "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+    )
+    # v.saveColocs("wave.test", project_id="oceanum-dev")
+    # plt.show()
+
+
+def test_gds():
+    obsdset = "oceanum-prod.cersat.data_v0"
+    project_id = "oceanum-prod"
+    modfile = ["http://gds-hindcast.metoceanapi.com:80/dods/wrf/2012/nzra1_sfc_d02.2012"]
+    v = VerifyDAP(
+        ncglob=modfile,
+        start=datetime(2012, 1, 1),
+        end=datetime(2012, 1, 3),
+        obsdset=obsdset,
+        modvar="wndsp",
+        latmin=-44,
+        latmax=-30,
+        lonmin=160,
+        lonmax=176,
+    )
+    v.calcGriddedStats(2)
+    # # v.saveGriddedStats('out.nc')
+    # v.plotGriddedStats(
+        # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+    # )
+    # v.saveColocs("wave.test", project_id="oceanum-dev")
+    v.standard_plots()
     # plt.show()
 
 
 def test_zarr():
     obsdset = "oceanum-prod.cersat.data_v0"
     project_id = "oceanum-prod"
-    moddset = "era5_wind10m_360"
+    moddset = "era5_wind10m"
     master_url = "/source/ontake/tests/catalog_example/oceanum.yml"
     v = VerifyZarr(
         obsdset=obsdset,
         project_id=project_id,
         modvar="wndsp",
-        latmin=-50,
-        latmax=-10,
-        lonmin=120,
-        lonmax=175,
+        latmin=-44,
+        latmax=-30,
+        lonmin=160,
+        lonmax=176,
         moddset=moddset,
         start=datetime(2012, 1, 1),
-        end=datetime(2012, 1, 12),
-        master_url=master_url,
+        end=datetime(2012, 1, 3),
+        # master_url=master_url,
     )
-    v.loadModel()
-    v.loadObs()
-    v.interpModel()
-    v.createColocs()
     v.calcGriddedStats(2)
     v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
     plt.show()
