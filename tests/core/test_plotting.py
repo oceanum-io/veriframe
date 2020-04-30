@@ -107,6 +107,12 @@ class TestVerifySingle(unittest.TestCase):
         plt.close('all')
 
 
+class TestStandard(TestVerifySingle):
+
+    def test_standard_plots(self):
+        self.v.standard_plots()
+        if savepdf: self.pdf_pages.savefig()
+
 class TestVerifyMulti(unittest.TestCase):
 
     @classmethod
