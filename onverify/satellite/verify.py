@@ -1560,8 +1560,8 @@ class VerifyDAP(VerifyGBQ):
             "v10",
         }  # vector variables can be built later
         excluded = set(infonc.data_vars) - self.model_vars - extra_vars
-        latres = infonc.lat[1] - infonc.lat[0]
-        lonres = infonc.lon[1] - infonc.lon[0]
+        latres = infonc.lat[1].values - infonc.lat[0].values
+        lonres = infonc.lon[1].values - infonc.lon[0].values
 
         self.logger.info("Loading model data %s \n" % "\n\t".join(ncfiles))
         model = (
