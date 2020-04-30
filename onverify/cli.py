@@ -57,12 +57,15 @@ def main():
 def satellite(pycallable, start, end, args, kwargs, methods):
     kw = {}
     for item in kwargs:
-        split = item.split(":")
+        split = item.split(":", 1)
         if isinstance(split[1], str):
             try:
                 kw.update({split[0]: float(split[1])})
             except Exception as e:
-                kw.update({split[0]: split[1]})
+                if ',' in split[1]:
+                    kw.update({split[0]: split[1].split(',')})
+                else:
+                    kw.update({split[0]: split[1]})
         else:
             kw.update({split[0]: split[1]})
     kw.update(dict(start=start, end=end))
