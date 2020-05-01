@@ -22,10 +22,12 @@ from scipy.stats import mstats
 from retrying import retry
 from pandas_gbq.gbq import to_gbq, GenericGBQException
 
-from onverify.site_base import Verify as VerifyBase
+# from onverify.site_base import Verify as VerifyBase
+from onverify.veriframe import VeriFrame
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
-from onverify.io.file import open_netcdf
+
+# from onverify.io.file import open_netcdf
 from oncore.dataio import get
 from ontake.ontake import Ontake
 
@@ -189,7 +191,7 @@ class Parser(object):
         self.action_args()
 
 
-class Verify(VerifyBase):
+class Verify(object):
     def __init__(
         self,
         ncglob,
@@ -206,6 +208,7 @@ class Verify(VerifyBase):
         proj="PlateCarree",
         clat=0,
         scalefactor=1,
+        plotdir="./plots",
         **kwargs,
     ):
         """
@@ -213,6 +216,7 @@ class Verify(VerifyBase):
         """
         self.logger = logger
         self.test = test
+        self.plotdir = plotdir
 
         self.ncglob = ncglob
         self.obsregex = obsregex or "/net/datastor1/data/obs/cersat/%Y/wm_%Y%m%d.nc"
@@ -258,7 +262,7 @@ class Verify(VerifyBase):
         # # filled in calcColocs() or loadColocs()
         # self.df = []
         df = self.calcColocs()
-        super().__init__(df, modname="model", **kwargs)
+        self.df = VeriFrame(df, ref_col="obs", verify_col="model", **kwargs)
 
     def calcColocs(self, dropvars=None):
         self.loadModel()
@@ -862,8 +866,36 @@ class Verify(VerifyBase):
         self.obsname = "obs"
         self.modname = "model"
 
-    def standard_plots(self):
-        super().standard_plots()
+    def standard_plots(self, color="r"):
+        if self.plotdir:
+            logging.info("Saving output to %s" % self.plotdir)
+            os.makedirs(self.plotdir, exist_ok=True)
+        ax = self.df.plot_density_contour(cmap="viridis")
+        self.df.add_stats(ax)
+        self.df.plot_regression(ax=ax)
+        self.df.add_regression(ax, loc=4)
+        if self.plotdir:
+            plt.savefig(os.path.join(self.plotdir, "scatter_density.png"), bbox_inches="tight")
+        ax = self.df.plot_qq(
+            increment=0.001, color=color, alpha=0.1, label="0.1 % increments"
+        )
+        self.df.plot_qq(
+            increment=0.01, color=color, ax=ax, alpha=0.2, label="1 % increments"
+        )
+        self.df.plot_qq(
+            increment=0.1, color=color, ax=ax, alpha=1.0, label="10 % increments"
+        )
+        plt.legend()
+
+        if self.plotdir:
+            plt.savefig(os.path.join(self.plotdir, "qq.png"), bbox_inches="tight")
+
+        ax = self.df.plot_scatter_qq()
+        if self.plotdir:
+            plt.savefig(
+                os.path.join(self.plotdir, "scatter_qq.png"), bbox_inches="tight"
+            )
+
         self.calcGriddedStats(self.boxsize)
         self.plotGriddedStats(
             "bias", proj=self.proj, clat=self.clat, scalefactor=self.scalefactor
@@ -1541,7 +1573,6 @@ class VerifyDAP(VerifyGBQ):
         self.start = start
         self.end = end
         super().__init__(*args, **kwargs)
-
 
     def loadModel(self):
         if not isinstance(self.ncglob, list):

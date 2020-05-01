@@ -51,6 +51,11 @@ class TestVerifySingle(unittest.TestCase):
         ax.set_title('test_qq')
         if savepdf: self.pdf_pages.savefig()
 
+    def test_scatter_qq(self):
+        ax = self.v.plot_scatter_qq()
+        ax.set_title('test_scatter_qq')
+        if savepdf: self.pdf_pages.savefig()
+
     def test_qq2(self):
         ax = self.v.plot_qq(marker='s', color='r')
         self.v.add_stats(ax=ax)
