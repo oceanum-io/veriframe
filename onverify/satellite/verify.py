@@ -210,7 +210,8 @@ class Verify(object):
         scalefactor=1,
         plotdir="./plots",
         savestats=False,
-        savemonthlystats=False ** kwargs,
+        savemonthlystats=False,
+        ** kwargs,
     ):
         """
         - model_vars :: model variables to interpolate onto colocs
