@@ -1547,7 +1547,7 @@ class VerifyGBQ(Verify):
         if self.savestats:
             self.saveStats(self.savestats)
         if self.savemonthlystats:
-            self.savemonthlystats(self.savestats)
+            self.saveStatsMonthly(self.savemonthlystats)
 
 
 class VerifyZarr(VerifyGBQ):
