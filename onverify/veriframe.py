@@ -1285,6 +1285,10 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         if lonedges.size > nlon:
             lonedges = lonedges[:-1]
 
+        # Testing this as coordinates look shifted
+        latedges += (latedges[1] - latedges[0]) / 2
+        lonedges += (lonedges[1] - lonedges[0]) / 2
+
         # Assign gridded dataset
         dset = xr.Dataset(coords={"lat": latedges, "lon": lonedges})
 
