@@ -1546,8 +1546,8 @@ class VerifyGBQ(Verify):
         self.standard_plots()
         if self.savestats:
             self.saveStats(self.savestats)
-        if self.monthlysavestats:
-            self.saveStatsMonthly(self.savestats)
+        if self.savemonthlystats:
+            self.savemonthlystats(self.savestats)
 
 
 class VerifyZarr(VerifyGBQ):
