@@ -209,7 +209,8 @@ class Verify(object):
         clat=0,
         scalefactor=1,
         plotdir="./plots",
-        **kwargs,
+        savestats=False,
+        savemonthlystats=False ** kwargs,
     ):
         """
         - model_vars :: model variables to interpolate onto colocs
@@ -217,6 +218,8 @@ class Verify(object):
         self.logger = logger
         self.test = test
         self.plotdir = plotdir
+        self.savemonthlystats = savemonthlystats
+        self.savestats = savestats
 
         self.ncglob = ncglob
         self.obsregex = obsregex or "/net/datastor1/data/obs/cersat/%Y/wm_%Y%m%d.nc"
@@ -875,7 +878,9 @@ class Verify(object):
         self.df.plot_regression(ax=ax)
         self.df.add_regression(ax, loc=4)
         if self.plotdir:
-            plt.savefig(os.path.join(self.plotdir, "scatter_density.png"), bbox_inches="tight")
+            plt.savefig(
+                os.path.join(self.plotdir, "scatter_density.png"), bbox_inches="tight"
+            )
         ax = self.df.plot_qq(
             increment=0.001, color=color, alpha=0.1, label="0.1 % increments"
         )
@@ -1496,6 +1501,17 @@ class VerifyGBQ(Verify):
             **kwargs,
         )
 
+    @retry(**RETRY_KWARGS)
+    def saveStatsMonthly(
+        self, table, time=None, if_exists="append", project_id="oceanum-dev", **kwargs
+    ):
+        dftmp = self.df.copy()
+        for date, self.df in self.df.groupby(pd.Grouper(freq="M")):
+            if hasattr(self, "stats"):
+                del self.stats
+            self.saveStats(table, time=datetime(date.year, date.month, 1))
+        self.df = dftmp
+
     def loadColocs(
         self, start=None, end=None, dset="wave.test", use_bqstorage_api=True
     ):
@@ -1527,6 +1543,10 @@ class VerifyGBQ(Verify):
     def __call__(self):
         self.calcGriddedStats()
         self.standard_plots()
+        if self.savestats:
+            self.saveStats(self.savestats)
+        if self.monthlysavestats:
+            self.saveStatsMonthly(self.savestats)
 
 
 class VerifyZarr(VerifyGBQ):

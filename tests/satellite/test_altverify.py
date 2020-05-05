@@ -55,6 +55,25 @@ def test_gds():
     v.standard_plots()
     # plt.show()
 
+def test_monthly():
+    obsdset = "oceanum-prod.cersat.data_v0"
+    project_id = "oceanum-prod"
+    modfile = ["http://gds-hindcast.metoceanapi.com:80/dods/wrf/2012/nzra1_sfc_d02.2012"]
+    v = VerifyDAP(
+        ncglob=modfile,
+        start=datetime(2012, 1, 1),
+        end=datetime(2012, 12, 31),
+        obsdset=obsdset,
+        modvar="wndsp",
+        latmin=-41,
+        latmax=-38,
+        lonmin=172,
+        lonmax=175,
+    )
+    #v.calcGriddedStats(0.5)
+    #v.standard_plots()
+    #plt.show()
+    v.saveStatsMonthly('wave.teststats')
 
 def test_zarr():
     obsdset = "oceanum-prod.cersat.data_v0"
