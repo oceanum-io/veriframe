@@ -211,6 +211,7 @@ class Verify(object):
         plotdir="./plots",
         savestats=False,
         savemonthlystats=False,
+        savemonthlyplots=False,
         ** kwargs,
     ):
         """
@@ -220,6 +221,7 @@ class Verify(object):
         self.test = test
         self.plotdir = plotdir
         self.savemonthlystats = savemonthlystats
+        self.savemonthlyplots = savemonthlyplots
         self.savestats = savestats
 
         self.ncglob = ncglob
@@ -610,10 +612,10 @@ class Verify(object):
         self.logger.info("    Calculating gridded statistics...")
         self.boxsize = boxsize or self.boxsize
 
-        lat = self.df.lat
-        lon = self.df.lon
-        obs = self.df.obs
-        model = self.df.model
+        lat = self.df['lat']
+        lon = self.df['lon']
+        obs = self.df['obs']
+        model = self.df['model']
 
         # if self.modlonmax + self.lonres == 360:
         #     self.logger.debug("calc_grid_stats adding cyclic points for global grid..")
@@ -1513,6 +1515,17 @@ class VerifyGBQ(Verify):
             self.saveStats(table, time=datetime(date.year, date.month, 1))
         self.df = dftmp
 
+    def standard_plots_monthly(self):
+        dftmp = self.df.copy()
+        plotdir = self.plotdir
+        for date, self.df in self.df.groupby(pd.Grouper(freq="M")):
+            if hasattr(self, "stats"):
+                del self.stats
+            self.plotdir = f"{plotdir}/{date.strftime('%Y%m')}"
+            self.standard_plots()
+        self.df = dftmp
+        self.plotdir = plotdir
+
     def loadColocs(
         self, start=None, end=None, dset="wave.test", use_bqstorage_api=True
     ):
@@ -1548,6 +1561,8 @@ class VerifyGBQ(Verify):
             self.saveStats(self.savestats)
         if self.savemonthlystats:
             self.saveStatsMonthly(self.savemonthlystats)
+        if self.savemonthlyplots:
+            self.standard_plots_monthly()
 
 
 class VerifyZarr(VerifyGBQ):

@@ -69,11 +69,10 @@ def test_monthly():
         latmax=-38,
         lonmin=172,
         lonmax=175,
+        savemonthlystats='wave.teststast',
+        savemonthlyplots=True
     )
-    #v.calcGriddedStats(0.5)
-    #v.standard_plots()
-    #plt.show()
-    v.saveStatsMonthly('wave.teststats')
+    v()
 
 def test_zarr():
     obsdset = "oceanum-prod.cersat.data_v0"
