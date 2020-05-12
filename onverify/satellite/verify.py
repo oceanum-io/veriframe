@@ -27,7 +27,7 @@ from onverify.veriframe import VeriFrame
 from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
 
-# from onverify.io.file import open_netcdf
+from onverify.io.file import open_netcdf
 from oncore.dataio import get
 from ontake.ontake import Ontake
 
