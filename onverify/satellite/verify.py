@@ -1235,8 +1235,13 @@ def plotMap(
     #     cbar_ax.set_position([posn.x0 + posn.width + 0.01, posn.y0+0.1,
     #                          0.02, posn.height-0.2])
     # fig.canvas.mpl_connect('resize_event', resize_colobar)
-    ax.coastlines(zorder=3, color="gray")
-    ax.add_feature(cfeature.LAND, facecolor="gray", zorder=2)
+    nlats = len(lats)
+    if nlats < 100:
+        res = '10m'
+    else:
+        res = '110m'
+    ax.coastlines(zorder=3, color="gray", resolution=res)
+    ax.natural_earth_shp(name='land', resolution=res, category='physical', facecolor='gray')
     plt.colorbar(mpl, fraction=0.046, pad=0.04, orientation="horizontal")
     try:
         gl = ax.gridlines(draw_labels=True)
