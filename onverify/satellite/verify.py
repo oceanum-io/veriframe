@@ -835,6 +835,9 @@ class Verify(object):
         )
 
     def saveStats(self, outfile):
+        self.saveStatsFile(outfile)
+
+    def saveStatsFile(self, outfile):
         if not hasattr(self, "stats"):
             self.calcStats()
         if hasattr(self, "stats"):
@@ -941,6 +944,8 @@ class Verify(object):
             plt.savefig(os.path.join(self.plotdir, "gridN.png"), bbox_inches="tight")
         if self.plotdir:
             self.saveGriddedStats(os.path.join(self.plotdir, "gridded_stats.nc"))
+        if self.plotdir:
+            self.saveStatsFile(os.path.join(self.plotdir, "stats.json"))
 
 
 class VerifyNRT(Verify):
