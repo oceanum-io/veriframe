@@ -28,7 +28,7 @@ from onverify.stats import bias, rmsd, si
 from onverify.io.gbq import GBQAlt
 
 from onverify.io.file import open_netcdf
-from oncore.dataio import get
+from oncore.dataio import get, put
 from ontake.ontake import Ontake
 
 # from verify.core.calc_nrt_pairs import load_nrt
@@ -212,7 +212,8 @@ class Verify(object):
         savestats=False,
         savemonthlystats=False,
         savemonthlyplots=False,
-        ** kwargs,
+        upload=False,
+        **kwargs,
     ):
         """
         - model_vars :: model variables to interpolate onto colocs
@@ -223,6 +224,7 @@ class Verify(object):
         self.savemonthlystats = savemonthlystats
         self.savemonthlyplots = savemonthlyplots
         self.savestats = savestats
+        self.upload = upload
 
         self.ncglob = ncglob
         self.obsregex = obsregex or "/net/datastor1/data/obs/cersat/%Y/wm_%Y%m%d.nc"
@@ -612,10 +614,10 @@ class Verify(object):
         self.logger.info("    Calculating gridded statistics...")
         self.boxsize = boxsize or self.boxsize
 
-        lat = self.df['lat']
-        lon = self.df['lon']
-        obs = self.df['obs']
-        model = self.df['model']
+        lat = self.df["lat"]
+        lon = self.df["lon"]
+        obs = self.df["obs"]
+        model = self.df["model"]
 
         # if self.modlonmax + self.lonres == 360:
         #     self.logger.debug("calc_grid_stats adding cyclic points for global grid..")
@@ -947,6 +949,12 @@ class Verify(object):
         if self.plotdir:
             self.saveStatsFile(os.path.join(self.plotdir, "stats.json"))
 
+    def upload_output(self):
+        upload = self.t1.strftime(self.upload)
+        self.logger.info(f"Uploading output to {upload}")
+        for fname in glob("{}/*".format(self.plotdir)):
+            put(fname, os.path.join(upload, fname))
+
 
 class VerifyNRT(Verify):
     def __init__(
@@ -1237,11 +1245,13 @@ def plotMap(
     # fig.canvas.mpl_connect('resize_event', resize_colobar)
     nlats = len(lats)
     if nlats < 100:
-        res = '10m'
+        res = "10m"
     else:
-        res = '110m'
+        res = "110m"
     ax.coastlines(zorder=3, color="gray", resolution=res)
-    ax.natural_earth_shp(name='land', resolution=res, category='physical', facecolor='gray')
+    ax.natural_earth_shp(
+        name="land", resolution=res, category="physical", facecolor="gray"
+    )
     plt.colorbar(mpl, fraction=0.046, pad=0.04, orientation="horizontal")
     try:
         gl = ax.gridlines(draw_labels=True)
@@ -1581,6 +1591,8 @@ class VerifyGBQ(Verify):
             self.saveStatsMonthly(self.savemonthlystats)
         if self.savemonthlyplots:
             self.standard_plots_monthly()
+        if self.upload:
+            self.upload_output()
 
 
 class VerifyZarr(VerifyGBQ):

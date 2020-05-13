@@ -21,12 +21,19 @@ def test_gbq():
     modfile = (
         "gs://oceanum-data-dev/ww3/glob05_era5_prod/output/grid/glob-20120101T00.nc"
     )
-    v = VerifyGBQ(modfile, obsdset=dset, project_id=project_id, test=True)
+    v = VerifyGBQ(
+        modfile,
+        obsdset=dset,
+        project_id=project_id,
+        test=True,
+        upload="gs://oceanum-data-dev/test/%Y%m",
+    )
     v.calcGriddedStats(2)
     # # v.saveGriddedStats('out.nc')
     v.plotGriddedStats(
         "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
     )
+    v.upload_output()
     # v.saveColocs("wave.test", project_id="oceanum-dev")
     # plt.show()
 
@@ -34,7 +41,9 @@ def test_gbq():
 def test_gds():
     obsdset = "oceanum-prod.cersat.data_v0"
     project_id = "oceanum-prod"
-    modfile = ["http://gds-hindcast.metoceanapi.com:80/dods/wrf/2012/nzra1_sfc_d02.2012"]
+    modfile = [
+        "http://gds-hindcast.metoceanapi.com:80/dods/wrf/2012/nzra1_sfc_d02.2012"
+    ]
     v = VerifyDAP(
         ncglob=modfile,
         start=datetime(2012, 1, 1),
@@ -49,16 +58,19 @@ def test_gds():
     v.calcGriddedStats(2)
     # # v.saveGriddedStats('out.nc')
     # v.plotGriddedStats(
-        # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+    # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
     # )
     # v.saveColocs("wave.test", project_id="oceanum-dev")
     v.standard_plots()
     # plt.show()
 
+
 def test_monthly():
     obsdset = "oceanum-prod.cersat.data_v0"
     project_id = "oceanum-prod"
-    modfile = ["http://gds-hindcast.metoceanapi.com:80/dods/wrf/2012/nzra1_sfc_d02.2012"]
+    modfile = [
+        "http://gds-hindcast.metoceanapi.com:80/dods/wrf/2012/nzra1_sfc_d02.2012"
+    ]
     v = VerifyDAP(
         ncglob=modfile,
         start=datetime(2012, 1, 1),
@@ -69,10 +81,11 @@ def test_monthly():
         latmax=-38,
         lonmin=172,
         lonmax=175,
-        savemonthlystats='wave.teststast',
-        savemonthlyplots=True
+        savemonthlystats="wave.teststast",
+        savemonthlyplots=True,
     )
     v()
+
 
 def test_zarr():
     obsdset = "oceanum-prod.cersat.data_v0"
