@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
 """Console script for ondata."""
+import importlib
+import logging
 import sys
+
 import click
 import yaml
-import logging
-import importlib
 
+from oncore.date import timedelta
 
 DFMTS = [
     "%Y-%m-%d",
@@ -39,13 +41,14 @@ def main():
     "-s", "--start", help="Start date", type=click.DateTime(formats=DFMTS),
 )
 @click.option(
-    "-e", "--end", help="Start date", type=click.DateTime(formats=DFMTS),
+    "-e", "--end", help="Start date", type=click.DateTime(formats=DFMTS), default=None
 )
+@click.option("-f", "--freq", help="Frequency", type=str, default=None)
 @click.option(
     "-m",
     "--methods",
     help="List of methods in object to run",
-    default=['__call__'],
+    default=["__call__"],
     show_default=True,
 )
 @click.option(
@@ -54,7 +57,7 @@ def main():
     multiple=True,
     help="additional key value pairs in the format key:value",
 )
-def satellite(pycallable, start, end, args, kwargs, methods):
+def satellite(pycallable, start, end, freq, args, kwargs, methods):
     kw = {}
     for item in kwargs:
         split = item.split(":", 1)
@@ -62,12 +65,22 @@ def satellite(pycallable, start, end, args, kwargs, methods):
             try:
                 kw.update({split[0]: float(split[1])})
             except Exception as e:
-                if ',' in split[1]:
-                    kw.update({split[0]: split[1].split(',')})
+                if "," in split[1]:
+                    kw.update({split[0]: split[1].split(",")})
                 else:
                     kw.update({split[0]: split[1]})
         else:
             kw.update({split[0]: split[1]})
+    dateerror = "Both end and freq specified, specify one only"
+    if freq:
+        if end:
+            raise Exception("Both end and freq specified, specify one only")
+        else:
+            end = start + timedelta(freq)
+    else:
+        if not end:
+            raise Exception("Neither end or freq specified please specify one")
+
     kw.update(dict(start=start, end=end))
 
     module = import_pycallable(pycallable)
