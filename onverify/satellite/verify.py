@@ -889,10 +889,10 @@ class Verify(object):
             plt.savefig(
                 os.path.join(self.plotdir, "density_contour.png"), bbox_inches="tight"
             )
-        ax = self.df.plot_density_scatter(cmap="viridis")
-        self.df.add_stats(ax)
-        self.df.plot_regression(ax=ax)
-        self.df.add_regression(ax, loc=4)
+        # ax = self.df.plot_density_scatter(cmap="viridis")
+        # self.df.add_stats(ax)
+        # self.df.plot_regression(ax=ax)
+        # self.df.add_regression(ax, loc=4)
         if self.plotdir:
             plt.savefig(
                 os.path.join(self.plotdir, "density_scatter.png"), bbox_inches="tight"
