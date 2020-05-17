@@ -28,14 +28,15 @@ def test_gbq():
         test=True,
         upload="gs://oceanum-data-dev/test/%Y%m",
     )
-    v.calcGriddedStats(2)
-    # # v.saveGriddedStats('out.nc')
-    v.plotGriddedStats(
-        "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
-    )
-    v.upload_output()
+    # v.calcGriddedStats(2)
+    # # # v.saveGriddedStats('out.nc')
+    # v.plotGriddedStats(
+        # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+    # )
+    # v.upload_output()
     # v.saveColocs("wave.test", project_id="oceanum-dev")
     # plt.show()
+    v()
 
 
 def test_gds():
@@ -54,14 +55,16 @@ def test_gds():
         latmax=-30,
         lonmin=160,
         lonmax=176,
+        savecolocsfile=True
     )
-    v.calcGriddedStats(2)
+    #v.calcGriddedStats(2)
     # # v.saveGriddedStats('out.nc')
     # v.plotGriddedStats(
     # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
     # )
     # v.saveColocs("wave.test", project_id="oceanum-dev")
-    v.standard_plots()
+    #v.standard_plots()
+    v()
     # plt.show()
 
 
@@ -107,8 +110,25 @@ def test_zarr():
     )
     v.calcGriddedStats(2)
     v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
-    plt.show()
+    #plt.show()
 
+def test_zarr_hs():
+    project_id = "oceanum-prod"
+    moddset = ""
+    v = VerifyZarr(
+        project_id=project_id,
+        latmin=-44,
+        latmax=-30,
+        lonmin=160,
+        lonmax=176,
+        moddset='oceanum_wave_glob05_era5_v1.0_grid',
+        start=datetime(2012, 1, 1),
+        end=datetime(2012, 1, 3),
+        # master_url=master_url,
+    )
+    v.calcGriddedStats(2)
+    v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
+    plt.show()
 
 def test_plot():
     dset = "wave.glob05_era5_prod"

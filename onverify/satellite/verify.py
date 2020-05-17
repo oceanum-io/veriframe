@@ -212,6 +212,7 @@ class Verify(object):
         savestats=False,
         savemonthlystats=False,
         savemonthlyplots=False,
+        savecolocsfile=False,
         upload=False,
         **kwargs,
     ):
@@ -224,6 +225,7 @@ class Verify(object):
         self.savemonthlystats = savemonthlystats
         self.savemonthlyplots = savemonthlyplots
         self.savestats = savestats
+        self.savecolocsfile = savecolocsfile
         self.upload = upload
 
         self.ncglob = ncglob
@@ -848,10 +850,16 @@ class Verify(object):
         else:
             self.logger.warning("    No stats to save ...")
 
-    def saveColocs(self, outfile):
+    def saveColocsFile(self, outfile=None):
         """Write matchups to pkl"""
+        if outfile == None:
+            outfile = f"{self.plotdir}/colocs.pkl"
         self.logger.info("    Writing colocs to %s" % outfile)
         self.df.to_pickle(outfile)
+
+    def saveColocs(self, outfile=None):
+        """Write matchups to pkl"""
+        self.saveColocsFile(outfile)
 
     def loadColocs(self, fglob, subset=None):
         if isinstance(fglob, list):
@@ -1593,6 +1601,8 @@ class VerifyGBQ(Verify):
             self.standard_plots_monthly()
         if self.upload:
             self.upload_output()
+        if self.savecolocsfile:
+            self.saveColocsFile()
 
 
 class VerifyZarr(VerifyGBQ):
@@ -1620,12 +1630,13 @@ class VerifyZarr(VerifyGBQ):
         latres = metadata.latitude[1] - metadata.latitude[0]
         lonres = metadata.longitude[1] - metadata.longitude[0]
         self.model = (
-            ot.dataset(self.moddset).sel(
+            ot.dataset(self.moddset)[self.model_vars]
+            .sel(
                 # latitude=slice(self.latmin-latres, self.latmax+latres),
                 # longitude=slice(self.lonmin-latres, self.lonmax+lonres),
                 time=slice(self.start, self.end),
             )
-            # .load()
+            .load()
         )
         dsettime = self.model.time.to_pandas()
         self._check_model_data()
