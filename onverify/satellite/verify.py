@@ -1629,14 +1629,17 @@ class VerifyZarr(VerifyGBQ):
         metadata = ot.dataset(self.moddset)
         latres = metadata.latitude[1] - metadata.latitude[0]
         lonres = metadata.longitude[1] - metadata.longitude[0]
-        self.model = (
-            ot.dataset(self.moddset)[self.model_vars]
-            .sel(
-                # latitude=slice(self.latmin-latres, self.latmax+latres),
-                # longitude=slice(self.lonmin-latres, self.lonmax+lonres),
-                time=slice(self.start, self.end),
-            )
-            .load()
+        dset = ot.dataset(self.moddset)
+        modvars = self.model_vars.copy()
+        if "wndsp" in self.model_vars:
+            modvars.remove("wndsp")
+            for names in WIND_COMPONENT_NAMES:
+                if names[0] in dset.variables:
+                    modvars.update(names)
+        self.model = dset[list(modvars)].sel(
+            # latitude=slice(self.latmin-latres, self.latmax+latres),
+            # longitude=slice(self.lonmin-latres, self.lonmax+lonres),
+            time=slice(self.start, self.end),
         )
         dsettime = self.model.time.to_pandas()
         self._check_model_data()
