@@ -208,7 +208,7 @@ class Verify(object):
         proj="PlateCarree",
         clat=0,
         scalefactor=1,
-        plotdir="./plots",
+        plotdir="plots",
         savestats=False,
         savemonthlystats=False,
         savemonthlyplots=False,
@@ -960,7 +960,8 @@ class Verify(object):
     def upload_output(self):
         upload = self.t1.strftime(self.upload)
         self.logger.info(f"Uploading output to {upload}")
-        for fname in glob("{}/*".format(self.plotdir)):
+        for fname in glob(f"{self.plotdir}/*"):
+            __import__('ipdb').set_trace()
             put(fname, os.path.join(upload, fname))
 
 
