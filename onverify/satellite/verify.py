@@ -961,7 +961,6 @@ class Verify(object):
         upload = self.t1.strftime(self.upload)
         self.logger.info(f"Uploading output to {upload}")
         for fname in glob(f"{self.plotdir}/*"):
-            __import__('ipdb').set_trace()
             put(fname, os.path.join(upload, fname))
 
 
