@@ -13,6 +13,7 @@ from oncore.date import timedelta
 DFMTS = [
     "%Y-%m-%d",
     "%Y-%m-%dT%H",
+    "%Y%m%dT%H",
     "%Y-%m-%d %H:%M:%S",
     "%Y%m%d.%H%M%S",
     "%Y%m%d",

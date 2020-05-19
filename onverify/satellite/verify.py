@@ -1624,7 +1624,9 @@ class VerifyZarr(VerifyGBQ):
         super().__init__(self, *args, **kwargs)
 
     def loadModel(self,):
-        self.logger.info(f"Loading zarr model data from {self.moddset}")
+        self.logger.info(
+            f"Loading zarr {self.moddset} data from {self.start} to {self.end}"
+        )
         ot = Ontake(master_url=self.master_url, namespace=self.namespace)
         metadata = ot.dataset(self.moddset)
         latres = metadata.latitude[1] - metadata.latitude[0]
