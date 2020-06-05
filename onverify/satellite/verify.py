@@ -208,6 +208,7 @@ class Verify(object):
         proj="PlateCarree",
         clat=0,
         scalefactor=1,
+        model_subsample=None,
         plotdir="plots",
         savestats=False,
         savemonthlystats=False,
@@ -222,6 +223,7 @@ class Verify(object):
         self.logger = logger
         self.test = test
         self.plotdir = plotdir
+        self.model_subsample = model_subsample
         self.savemonthlystats = savemonthlystats
         self.savemonthlyplots = savemonthlyplots
         self.savestats = savestats
@@ -334,6 +336,7 @@ class Verify(object):
             self.model[self.lonname].values = self._swap_longitude_convention(
                 self.model[self.lonname].values
             )
+        self.model = self.model.isel(time=slice(None, None, self.model_subsample))
 
     def loadModel(self):
         ncfiles = glob(self.ncglob)
@@ -541,7 +544,6 @@ class Verify(object):
                     "%s not in model dataset, skipping interpolation" % (modelvar)
                 )
                 continue
-
             vals = self.model[modelvar].astype("float32").values
             if modelvar in directional_vars:
                 ret1 = self.aux_interp(np.sin(vals * np.pi / 180), coords, passes)
@@ -958,7 +960,7 @@ class Verify(object):
             self.saveStatsFile(os.path.join(self.plotdir, "stats.json"))
 
     def upload_output(self):
-        upload = self.t1.strftime(self.upload)
+        upload = self.t0.strftime(self.upload)
         self.logger.info(f"Uploading output to {upload}")
         for fname in glob(f"{self.plotdir}/*"):
             put(fname, os.path.join(upload, fname))
@@ -1478,7 +1480,7 @@ class VerifyGBQ(Verify):
         self.obsvar = obsnames[self.modvar]
         obsq = GBQAlt(
             variables=COREFIELDS + [self.obsvar],
-            dset=self.obsregex,
+            dset=self.t0.strftime(self.obsregex),
             project_id=self.project_id,
             use_bqstorage_api=use_bqstorage_api,
         )
@@ -1661,7 +1663,30 @@ class VerifyDAP(VerifyGBQ):
             ncfiles = [self.ncglob]
         else:
             ncfiles = self.ncglob
-        infonc = xr.open_dataset(ncfiles[0])
+
+        ncrend = []
+        for fname in ncfiles:
+            ncrend.append(self.start.strftime(fname))
+
+        infonc = xr.open_dataset(ncrend[0])
+        # excluded = set(infonc.data_vars) - self.model_vars - extra_vars
+        # latres = infonc.lat[1].values - infonc.lat[0].values
+        # lonres = infonc.lon[1].values - infonc.lon[0].values
+
+        # self.logger.info("Loading model data %s \n" % "\n\t".join(ncrend))
+        # model = (
+        # xr.open_mfdataset(ncrend, drop_variables=excluded, engine="netcdf4")
+        # .sel(
+        # lat=slice(self.latmin - latres, self.latmax + latres),
+        # lon=slice(self.lonmin - latres, self.lonmax + lonres),
+        # time=slice(self.start, self.end),
+        # )
+        # .load()
+        # )
+        # dsettime = model.time.to_pandas()
+        # inodup = np.where(dsettime.duplicated() == False)[0]
+        # self._check_model_data()
+        # self.model = model.isel(time=inodup)
         extra_vars = {
             "uwnd",
             "vwnd",
@@ -1673,22 +1698,18 @@ class VerifyDAP(VerifyGBQ):
             "v10",
         }  # vector variables can be built later
         excluded = set(infonc.data_vars) - self.model_vars - extra_vars
-        latres = infonc.lat[1].values - infonc.lat[0].values
-        lonres = infonc.lon[1].values - infonc.lon[0].values
 
-        self.logger.info("Loading model data %s \n" % "\n\t".join(ncfiles))
-        model = (
-            xr.open_mfdataset(ncfiles, drop_variables=excluded, engine="netcdf4")
-            .sel(
-                lat=slice(self.latmin - latres, self.latmax + latres),
-                lon=slice(self.lonmin - latres, self.lonmax + lonres),
-                time=slice(self.start, self.end),
-            )
-            .load()
-        )
+        self.logger.info("Loading model data %s \n" % "\n\t".join(ncrend))
+        model = xr.open_dataset(ncrend[0], drop_variables=excluded, engine="netcdf4")
+        if self.test:
+            self.logger.info(" Using first 10 timesteps only")
+            model = model.isel(time=slice(None, 10))
         dsettime = model.time.to_pandas()
-        inodup = np.where(dsettime.duplicated() == False)[0]
-        self.model = model.isel(time=inodup)
+        if dsettime.duplicated().any():
+            inodup = np.where(dsettime.duplicated() == False)[0]
+            self.model = model.isel(time=inodup)
+        else:
+            self.model = model
         self._check_model_data()
 
 

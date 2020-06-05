@@ -31,7 +31,7 @@ def test_gbq():
     # v.calcGriddedStats(2)
     # # # v.saveGriddedStats('out.nc')
     # v.plotGriddedStats(
-        # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+    # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
     # )
     # v.upload_output()
     # v.saveColocs("wave.test", project_id="oceanum-dev")
@@ -55,15 +55,40 @@ def test_gds():
         latmax=-30,
         lonmin=160,
         lonmax=176,
-        savecolocsfile=True
+        savecolocsfile=True,
     )
-    #v.calcGriddedStats(2)
+    # v.calcGriddedStats(2)
     # # v.saveGriddedStats('out.nc')
     # v.plotGriddedStats(
     # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
     # )
     # v.saveColocs("wave.test", project_id="oceanum-dev")
-    #v.standard_plots()
+    # v.standard_plots()
+    v()
+    # plt.show()
+
+
+def test_cawcr():
+    obsdset = "oceanum-prod.cersat.data_%Y%m"
+    project_id = "oceanum-prod"
+    modfile = [
+        "http://opendap.bom.gov.au:8080/thredds/dodsC/paccsapwaves_gridded/ww3.glob_24m.%Y%m.nc"
+    ]
+    v = VerifyDAP(
+        ncglob=modfile,
+        start=datetime(2012, 1, 1),
+        end=datetime(2012, 1, 3),
+        obsdset=obsdset,
+        savecolocsfile=True,
+        model_subsample=3,
+    )
+    # v.calcGriddedStats(2)
+    # # v.saveGriddedStats('out.nc')
+    # v.plotGriddedStats(
+    # "bias", vmin=-0.5, vmax=0.5, clon=0, clat=-90, proj="Orthographic"
+    # )
+    # v.saveColocs("wave.test", project_id="oceanum-dev")
+    # v.standard_plots()
     v()
     # plt.show()
 
@@ -110,7 +135,8 @@ def test_zarr():
     )
     v.calcGriddedStats(2)
     v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
-    #plt.show()
+    # plt.show()
+
 
 def test_zarr_hs():
     project_id = "oceanum-prod"
@@ -121,14 +147,17 @@ def test_zarr_hs():
         latmax=-30,
         lonmin=160,
         lonmax=176,
-        moddset='oceanum_wave_glob05_era5_v1.0_grid',
+        moddset="oceanum_wave_glob05_era5_v1.0_grid",
         start=datetime(2012, 1, 1),
         end=datetime(2012, 1, 3),
         # master_url=master_url,
+        upload="gs://oceanum-data-dev/ww3/test/verification/%Y%m",
     )
-    v.calcGriddedStats(2)
-    v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
+    # v.calcGriddedStats(2)
+    # v.plotGriddedStats("bias", vmin=-2.0, vmax=2.0, proj="PlateCarree")
     plt.show()
+    v()
+
 
 def test_plot():
     dset = "wave.glob05_era5_prod"
