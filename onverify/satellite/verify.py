@@ -336,7 +336,7 @@ class Verify(object):
             self.model[self.lonname].values = self._swap_longitude_convention(
                 self.model[self.lonname].values
             )
-        self.model = self.model.isel(time=slice(None, None, self.model_subsample))
+        self.model = self.model.isel(time=slice(None, None, int(self.model_subsample))
 
     def loadModel(self):
         ncfiles = glob(self.ncglob)
