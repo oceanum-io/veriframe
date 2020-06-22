@@ -336,7 +336,8 @@ class Verify(object):
             self.model[self.lonname].values = self._swap_longitude_convention(
                 self.model[self.lonname].values
             )
-        self.model = self.model.isel(time=slice(None, None, int(self.model_subsample)))
+        if self.model_subsample:
+            self.model = self.model.isel(time=slice(None, None, int(self.model_subsample)))
 
     def loadModel(self):
         ncfiles = glob(self.ncglob)
@@ -400,6 +401,8 @@ class Verify(object):
         self.t0 = dsettime[0]
         self.t1 = dsettime[-1]
         self.tstep = dsettime[1] - self.t0
+
+        self.logger.info(f"Running verification for period {self.t0} to {self.t1}")
 
         self.latres = np.abs(
             self.model[self.latname].values[0] - self.model[self.latname].values[1]
