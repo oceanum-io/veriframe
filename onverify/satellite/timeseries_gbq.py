@@ -32,22 +32,22 @@ altnames = {
 
 
 # altnames = {
-    # 1: "ERS1",
-    # 2: "ERS2",
-    # 3: "ENVISAT",
-    # 4: "TOPEX",
-    # 5: "POSEIDON",
-    # 6: "JASON1",
-    # 7: "GFO",
-    # 8: "JASON2",
-    # 9: "CRYOSAT",
+# 1: "ERS1",
+# 2: "ERS2",
+# 3: "ENVISAT",
+# 4: "TOPEX",
+# 5: "POSEIDON",
+# 6: "JASON1",
+# 7: "GFO",
+# 8: "JASON2",
+# 9: "CRYOSAT",
 # }
 
 
 def test():
     # dset = "wave.glob05_era5_prod_monthly_stats"
     # dset = "wave.metocean_wind_stats"
-    #dset = "wave.oceanum_wave_glob05_era5_v1_monthly_stats"
+    # dset = "wave.oceanum_wave_glob05_era5_v1_monthly_stats"
     dset = "wave.cawcr_wave_glob04_cfsr_monthly_stats"
     df = loadStats(dset)
     # df = pd.read_csv('test_data.csv', parse_dates=['time'], index_col=['time']).sort_index()
@@ -71,7 +71,7 @@ def plot_set(
     minobs=400000,
     fig=None,
     stats=dict(bias="Bias (m)", si="Scatter Index", rmsd="RMSE (m)", r="R", N="N"),
-    ** kwargs,
+    **kwargs,
 ):
     if not fig:
         fig = plt.figure(figsize=(10, 10))
@@ -89,6 +89,11 @@ def plot_set(
             except Exception as e:
                 label = "unknown"
             mask = satellite[1]["N"] > minobs
+            if label == "ERS-2":
+                exclude = satellite[1].index > pd.to_datetime(
+                    datetime.datetime(2003, 1, 1)
+                ).tz_localize("UTC")
+                mask[exclude] = False
             satellite[1][key][mask].plot(label=label, ax=ax, grid=True, legend=False)
         plt.ylabel(value)
         nn += 1
