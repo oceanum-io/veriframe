@@ -13,7 +13,7 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "attrdict",
-    "Click>=6.0",
+    "click",
     "matplotlib",
     "numpy",
     "owslib",
@@ -29,7 +29,7 @@ requirements = [
     "cartopy",
     "netcdf4",
     "h5netcdf",
-    "six==1.13.0" #pbq bug https://github.com/googleapis/google-cloud-python/issues/9965
+    "six",
 ]
 
 setup_requirements = ["pytest-runner"]

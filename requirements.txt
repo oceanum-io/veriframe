@@ -4,5 +4,5 @@ git+ssh://git@gitlab.com/oceanum/oncore # This will need to be tagged at some po
 git+ssh://git@gitlab.com/oceanum/ontake # This will need to be tagged at some point
 google-cloud-bigquery-storage
 pyarrow
-pyproj==1.9.6
-six==1.13.0
+pyproj
+six
