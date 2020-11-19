@@ -965,8 +965,9 @@ class Verify(object):
     def upload_output(self):
         upload = self.t0.strftime(self.upload)
         self.logger.info(f"Uploading output to {upload}")
-        for fname in glob(f"{self.plotdir}/*"):
-            put(fname, os.path.join(upload, fname))
+        for src in glob(f"{self.plotdir}/*"):
+            dst = os.path.join(upload, os.path.basename(src))
+            put(src, dst)
 
 
 class VerifyNRT(Verify):
