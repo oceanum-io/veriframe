@@ -1615,8 +1615,8 @@ class VerifyZarr(VerifyGBQ):
     def __init__(
         self,
         moddset,
-        start,
-        end,
+        start=None,
+        end=None,
         namespace="hindcast",
         master_url="gs://oceanum-catalog/oceanum.yml",
         *args,
