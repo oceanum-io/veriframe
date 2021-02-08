@@ -1,25 +1,13 @@
-# -*- coding: utf-8 -*-
-
-"""Console script for ondata."""
+"""Console script for onverify."""
 import importlib
 import logging
-import sys
-
+import os
 import click
 import yaml
 
 from oncore.date import timedelta
-
-DFMTS = [
-    "%Y-%m-%d",
-    "%Y-%m-%dT%H",
-    "%Y%m%dT%H",
-    "%Y-%m-%d %H:%M:%S",
-    "%Y%m%d.%H%M%S",
-    "%Y%m%d",
-    "%Y-%m",
-    "%Y%m",
-]
+from oncore.cli import Cycle
+from oncore.git import fetch_gitlab_file
 
 
 def import_pycallable(pycallable):
@@ -38,12 +26,8 @@ def main():
 @main.command()
 @click.argument("pycallable", type=str)
 @click.argument("args", type=list, default=[])
-@click.option(
-    "-s", "--start", help="Start date", type=click.DateTime(formats=DFMTS),
-)
-@click.option(
-    "-e", "--end", help="Start date", type=click.DateTime(formats=DFMTS), default=None
-)
+@click.option("-s", "--start", help="Start date", type=Cycle(),)
+@click.option("-e", "--end", help="End date", type=Cycle(), default=None)
 @click.option("-f", "--freq", help="Frequency", type=str, default=None)
 @click.option(
     "-m",
@@ -90,5 +74,18 @@ def satellite(pycallable, start, end, freq, args, kwargs, methods):
         getattr(instance, method)()
 
 
-if __name__ == "__main__":
-    main()
+@main.command()
+@click.argument("config", envvar="CONFIG")
+@click.argument("cycle", envvar="CYCLE", type=Cycle())
+def verify_zarr(config, cycle):
+    """Verify model from zarr archive against satellite."""
+    if os.path.isfile(config):
+        instance = yaml.load(open(config), Loader=yaml.Loader)
+    elif "gitlab:" in config:
+        instance = yaml.load(fetch_gitlab_file(config), Loader=yaml.Loader)
+    else:
+        instance = yaml.load(config, Loader=yaml.Loader)
+
+    import ipdb; ipdb.set_trace()
+
+    getattr(instance, method.strip())(cycle=cycle)
