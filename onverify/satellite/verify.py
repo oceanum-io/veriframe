@@ -1605,7 +1605,7 @@ class VerifyGBQ(Verify):
         # Conditional that allows not calculating colocs during Verify.__init__ so that
         # model range can be defined after initialisation in VerifyZarr
         if not self.init_calc_colocs:
-            self.df = VeriFrame(self.calcColocs(), ref_col="obs", verify_col="model", **kwargs)
+            self.df = VeriFrame(self.calcColocs(), ref_col="obs", verify_col="model")
 
         self.calcGriddedStats()
         self.standard_plots()
