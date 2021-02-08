@@ -61,7 +61,7 @@ class CustomFormatter(
     pass
 
 
-class Parser(object):
+class Parser:
     def __init__(self):
         super(Parser, self).__init__()
         self.run()
@@ -191,7 +191,7 @@ class Parser(object):
         self.action_args()
 
 
-class Verify(object):
+class Verify:
     def __init__(
         self,
         ncglob,
@@ -1617,9 +1617,9 @@ class VerifyZarr(VerifyGBQ):
         moddset,
         start,
         end,
-        *args,
         namespace="hindcast",
         master_url="gs://oceanum-catalog/oceanum.yml",
+        *args,
         **kwargs,
     ):
         self.moddset = moddset
