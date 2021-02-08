@@ -1615,10 +1615,10 @@ class VerifyGBQ(Verify):
             self.saveStatsMonthly(self.savemonthlystats)
         if self.savemonthlyplots:
             self.standard_plots_monthly()
-        if self.upload:
-            self.upload_output()
         if self.savecolocsfile:
             self.saveColocsFile()
+        if self.upload:
+            self.upload_output()
 
 
 class VerifyZarr(VerifyGBQ):
