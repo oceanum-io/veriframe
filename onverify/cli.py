@@ -77,7 +77,14 @@ def satellite(pycallable, start, end, freq, args, kwargs, methods):
 @main.command()
 @click.argument("config", envvar="CONFIG")
 @click.argument("cycle", envvar="CYCLE", type=Cycle())
-def verify_zarr(config, cycle):
+@click.option(
+    "-f",
+    "--freq",
+    help="Frequency for verifying",
+    default="1M",
+    show_default=True,
+)
+def verify_zarr(config, cycle, freq):
     """Verify model from zarr archive against satellite."""
     if os.path.isfile(config):
         instance = yaml.load(open(config), Loader=yaml.Loader)
@@ -86,6 +93,6 @@ def verify_zarr(config, cycle):
     else:
         instance = yaml.load(config, Loader=yaml.Loader)
 
-    import ipdb; ipdb.set_trace()
-
-    getattr(instance, method.strip())(cycle=cycle)
+    instance.start = cycle
+    instance.end = instance.start + timedelta(freq)
+    getattr(instance, "__call__")()
