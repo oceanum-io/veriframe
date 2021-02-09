@@ -61,7 +61,7 @@ class CustomFormatter(
     pass
 
 
-class Parser(object):
+class Parser:
     def __init__(self):
         super(Parser, self).__init__()
         self.run()
@@ -191,7 +191,7 @@ class Parser(object):
         self.action_args()
 
 
-class Verify(object):
+class Verify:
     def __init__(
         self,
         ncglob,
@@ -215,10 +215,12 @@ class Verify(object):
         savemonthlyplots=False,
         savecolocsfile=False,
         upload=False,
+        init_calc_colocs=True,
         **kwargs,
     ):
         """
         - model_vars :: model variables to interpolate onto colocs
+        - init_calc_colocs (bool): Allow choosing if colocs are calculated during init.
         """
         self.logger = logger
         self.test = test
@@ -229,6 +231,7 @@ class Verify(object):
         self.savestats = savestats
         self.savecolocsfile = savecolocsfile
         self.upload = upload
+        self.init_calc_colocs = init_calc_colocs
 
         self.ncglob = ncglob
         self.obsregex = obsregex or "/net/datastor1/data/obs/cersat/%Y/wm_%Y%m%d.nc"
@@ -273,8 +276,9 @@ class Verify(object):
 
         # # filled in calcColocs() or loadColocs()
         # self.df = []
-        df = self.calcColocs()
-        self.df = VeriFrame(df, ref_col="obs", verify_col="model", **kwargs)
+        if self.init_calc_colocs:
+            df = self.calcColocs()
+            self.df = VeriFrame(df, ref_col="obs", verify_col="model", **kwargs)
 
     def calcColocs(self, dropvars=None):
         self.loadModel()
@@ -1597,6 +1601,12 @@ class VerifyGBQ(Verify):
         # super().loadModel(local)
 
     def __call__(self):
+
+        # Conditional that allows not calculating colocs during Verify.__init__ so that
+        # model range can be defined after initialisation in VerifyZarr
+        if not self.init_calc_colocs:
+            self.df = VeriFrame(self.calcColocs(), ref_col="obs", verify_col="model")
+
         self.calcGriddedStats()
         self.standard_plots()
         if self.savestats:
@@ -1605,21 +1615,23 @@ class VerifyGBQ(Verify):
             self.saveStatsMonthly(self.savemonthlystats)
         if self.savemonthlyplots:
             self.standard_plots_monthly()
-        if self.upload:
-            self.upload_output()
         if self.savecolocsfile:
             self.saveColocsFile()
+        if self.upload:
+            self.upload_output()
 
 
 class VerifyZarr(VerifyGBQ):
     def __init__(
         self,
         moddset,
-        start,
-        end,
-        *args,
+        start=None,
+        end=None,
         namespace="hindcast",
         master_url="gs://oceanum-catalog/oceanum.yml",
+        init_calc_colocs=False,
+        exclude_last_model=False,
+        *args,
         **kwargs,
     ):
         self.moddset = moddset
@@ -1627,7 +1639,8 @@ class VerifyZarr(VerifyGBQ):
         self.end = end
         self.namespace = namespace
         self.master_url = master_url
-        super().__init__(self, *args, **kwargs)
+        self.exclude_last_model = exclude_last_model
+        super().__init__(self, init_calc_colocs=init_calc_colocs, *args, **kwargs)
 
     def loadModel(self,):
         self.logger.info(
@@ -1649,7 +1662,10 @@ class VerifyZarr(VerifyGBQ):
             # longitude=slice(self.lonmin-latres, self.lonmax+lonres),
             time=slice(self.start, self.end),
         )
-        dsettime = self.model.time.to_pandas()
+        if self.exclude_last_model:
+            # For when splitting time frequencies to avoid duplicate
+            self.logger.debug("Removing last timestamp to avoid duplicates")
+            self.model = self.model.isel(time=slice(None, -1))
         self._check_model_data()
         self.model.load()
 

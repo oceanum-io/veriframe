@@ -15,4 +15,5 @@ COPY onverify $REPOS/onverify/onverify
 COPY tests $REPOS/onverify/tests
 RUN cd $REPOS/onverify &&\
     pip install -r requirements.txt --no-cache-dir &&\
-    pip install -e . --no-cache-dir
+    pip install -e . --no-cache-dir &&\
+    pip install -U aiohttp --no-cache-dir
