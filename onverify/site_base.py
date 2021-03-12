@@ -64,7 +64,7 @@ class Verify(object):
         self.plotdir = plotdir
         # Put standard variables in qdict
         vardef = os.path.join(os.path.dirname(globals()["__file__"]), "vardef.yml")
-        self.vardef = yaml.load(open(vardef))
+        self.vardef = yaml.load(open(vardef), loader=yaml.Loader)
         try:
             self.units = self.vardef["vars"][var]["units"]
             self.long_name = self.vardef["vars"][var]["long_name"]

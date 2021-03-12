@@ -12,7 +12,7 @@ __version__ = "0.1.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(HERE, "vardef.yml")) as stream:
-    VARDEF = AttrDict(yaml.load(stream, yaml.SafeLoader))
+    VARDEF = AttrDict(yaml.load(stream, yaml.Loader))
 
 with open(os.path.join(HERE, "defaults.yml")) as stream:
-    DEFAULTS = AttrDict(yaml.load(stream, yaml.SafeLoader))
+    DEFAULTS = AttrDict(yaml.load(stream, yaml.Loader))
