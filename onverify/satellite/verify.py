@@ -337,8 +337,8 @@ class Verify:
             self.model = xr.concat(
                 (dsout, self.model.sel(**slicing_dict)), dim=self.lonname
             )
-            self.model[self.lonname].values = self._swap_longitude_convention(
-                self.model[self.lonname].values
+            self.model = self.model.assign_coords(
+                {self.lonname: self._swap_longitude_convention(self.model[self.lonname].values)}
             )
         if self.model_subsample:
             self.model = self.model.isel(time=slice(None, None, int(self.model_subsample)))
