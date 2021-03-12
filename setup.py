@@ -14,6 +14,7 @@ with open("HISTORY.rst") as history_file:
 requirements = [
     "attrdict",
     "click",
+    "jinja2",
     "matplotlib",
     "numpy",
     "owslib",
