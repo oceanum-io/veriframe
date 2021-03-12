@@ -7,7 +7,5 @@ build_image:
     - docker-compose build
     - docker-compose push
   only:
-    - rafg
-    - newcli
     - tags
-    - branches
+    - master
