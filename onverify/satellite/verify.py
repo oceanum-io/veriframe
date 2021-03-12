@@ -322,8 +322,22 @@ class Verify:
 
         # Take care of longitude wrapping inconsistencies
         if self._is_360(lon_range) == self._is_360(self.model[self.lonname].values):
+            # Both in 0 -- 360 convention
             self.model = self.model.sel(**slicing_dict)
+        elif 0 <= lon_range[0] <= 180 and 0 <= lon_range[1] <= 180:
+            # Slice between meridian and date line
+            self.model = self.model.sel(**slicing_dict)
+        elif lon_range[0] < 0 and lon_range[1] < 0:
+            # Slice west of meridian
+            lon_range = self._swap_longitude_convention(lon_range)
+            slicing_dict = {key: val for key, val in slicing_dict.items()}
+            slicing_dict[self.lonname] = slice(lon_range[0], lon_range[1])
+            self.model = self.model.sel(**slicing_dict)
+            self.model = self.model.assign_coords(
+                {self.lonname: self._swap_longitude_convention(self.model[self.lonname].values)}
+            )
         else:
+            # Crossing Meridian
             if self._is_180(lon_range):
                 left, right = 0, 360
             else:
@@ -1647,10 +1661,9 @@ class VerifyZarr(VerifyGBQ):
             f"Loading zarr {self.moddset} data from {self.start} to {self.end}"
         )
         ot = Ontake(master_url=self.master_url, namespace=self.namespace)
-        metadata = ot.dataset(self.moddset)
-        latres = metadata.latitude[1] - metadata.latitude[0]
-        lonres = metadata.longitude[1] - metadata.longitude[0]
         dset = ot.dataset(self.moddset)
+        latres = dset.latitude[1] - dset.latitude[0]
+        lonres = dset.longitude[1] - dset.longitude[0]
         modvars = self.model_vars.copy()
         if "wndsp" in self.model_vars:
             modvars.remove("wndsp")
