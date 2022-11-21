@@ -1,7 +1,7 @@
 """Top-level package for onverify."""
 import os
 import yaml
-from attrdict import AttrDict
+#from attrdict import AttrDict
 
 
 __author__ = """Oceanum Developers"""
@@ -12,7 +12,7 @@ __version__ = "0.1.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 with open(os.path.join(HERE, "vardef.yml")) as stream:
-    VARDEF = AttrDict(yaml.load(stream, yaml.Loader))
+    VARDEF = yaml.load(stream, yaml.Loader)
 
 with open(os.path.join(HERE, "defaults.yml")) as stream:
-    DEFAULTS = AttrDict(yaml.load(stream, yaml.Loader))
+    DEFAULTS = yaml.load(stream, yaml.Loader)

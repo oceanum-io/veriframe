@@ -145,12 +145,16 @@ class AxisVerify:
         ]
         xdata = []
         ydata = []
-        for method in methods:
-            x, y = getattr(self, method)(ax)
-            xdata.append(x)
-            ydata.append(y)
-        xdata = np.array(self._flatten_list(xdata, []))
-        ydata = np.array(self._flatten_list(ydata, []))
+        # Not sure what this is doing Raf?
+        # for method in methods:
+            # x, y = getattr(self, method)(ax)
+            # xdata.append(x)
+            # ydata.append(y)
+        # xdata = np.array(self._flatten_list(xdata, []))
+        # ydata = np.array(self._flatten_list(ydata, []))
+        # Substituted nestjk
+        xdata = self[self.ref_col]
+        ydata = self[self.verify_col]
         if equal:
             xdata = np.concatenate((xdata, ydata))
             ydata = xdata
@@ -170,7 +174,7 @@ class AxisVerify:
             - ``kwargs``: options to pass Matplotlib's legend.
 
         """
-        kwargs = {**DEFAULTS.text_kwargs["legend"], **kwargs}
+        kwargs = {**DEFAULTS["text_kwargs"]["legend"], **kwargs}
 
         font_prop = kwargs.pop("prop")
         if ax:
@@ -455,7 +459,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
               in the scatter are highlighted.
 
         """
-        kwargs = {**DEFAULTS.plot_kwargs["scatter"], **kwargs}
+        kwargs = {**DEFAULTS['plot_kwargs']["scatter"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure()
@@ -496,7 +500,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - axis instance.
 
         """
-        kwargs = {**DEFAULTS.plot_kwargs["qq"], **kwargs}
+        kwargs = {**DEFAULTS['plot_kwargs']["qq"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -544,8 +548,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             kwargs["ax"] = fig.add_subplot(111)
 
-        scatter_kw = {**DEFAULTS.plot_kwargs["scatter"], **scatter_kw, **kwargs}
-        qq_kw = {**DEFAULTS.plot_kwargs["qq"], **qq_kw, **kwargs}
+        scatter_kw = {**DEFAULTS['plot_kwargs']["scatter"], **scatter_kw, **kwargs}
+        qq_kw = {**DEFAULTS['plot_kwargs']["qq"], **qq_kw, **kwargs}
 
         self.plot_scatter(showeq=False, **scatter_kw)
         self.plot_qq(increment=increment, showeq=showeq, xlim=xlim, ylim=ylim, **qq_kw)
@@ -581,7 +585,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - The ``colorbar`` argument requires ``c`` to be prescribed.
 
         """
-        kwargs = {**DEFAULTS.plot_kwargs["polar"], **kwargs}
+        kwargs = {**DEFAULTS['plot_kwargs']["polar"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -638,7 +642,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         Note:
             - the colours represent the number of datapoints per hexagon.
         """
-        kwargs = {**DEFAULTS.plot_kwargs["density_hexbin"], **kwargs}
+        kwargs = {**DEFAULTS['plot_kwargs']["density_hexbin"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -673,7 +677,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - The colours represent the relative density of datapoints.
 
         """
-        kwargs = {**DEFAULTS.plot_kwargs["density_contour"], **kwargs}
+        kwargs = {**DEFAULTS['plot_kwargs']["density_contour"], **kwargs}
 
         if "ax" in kwargs:
             ax = kwargs.pop("ax")
@@ -716,7 +720,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - The colours represent the relative density of datapoints.
 
         """
-        kwargs = {**DEFAULTS.plot_kwargs["density_scatter"], **kwargs}
+        kwargs = {**DEFAULTS['plot_kwargs']["density_scatter"], **kwargs}
 
         ax = kwargs.pop("ax", None)
         is_grid = kwargs.pop("grid")
@@ -773,11 +777,11 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             ax = fig.add_subplot(111)
 
-        kwargs_mod = {**DEFAULTS.plot_kwargs["pdf_mod"], **kwargs}
+        kwargs_mod = {**DEFAULTS['plot_kwargs']["pdf_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
-        kwargs_obs = {**DEFAULTS.plot_kwargs["pdf_obs"], **kwargs}
-        kwargs_hist = {**DEFAULTS.plot_kwargs["pdf_hist"], **kwargs}
+        kwargs_obs = {**DEFAULTS["plot_kwargs"]["pdf_obs"], **kwargs}
+        kwargs_hist = {**DEFAULTS["plot_kwargs"]["pdf_hist"], **kwargs}
         kwargs_hist.pop("facecolor", None)
 
         if show_obs:
@@ -844,10 +848,10 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             ax = fig.add_subplot(111)
 
-        kwargs_mod = {**DEFAULTS.plot_kwargs["cdf_mod"], **kwargs}
+        kwargs_mod = {**DEFAULTS["plot_kwargs"]["cdf_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
-        kwargs_obs = {**DEFAULTS.plot_kwargs["cdf_obs"], **kwargs}
+        kwargs_obs = {**DEFAULTS["plot_kwargs"]["cdf_obs"], **kwargs}
 
         if show_obs:
             x, n = self._get_cdf(self.ref_col)
@@ -892,11 +896,11 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             ax = fig.add_subplot(111)
         is_grid = kwargs.pop("grid", True)
 
-        kwargs_mod = {**DEFAULTS.plot_kwargs["timeseries_mod"], **kwargs}
+        kwargs_mod = {**DEFAULTS["plot_kwargs"]["timeseries_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
-        kwargs_obs = {**DEFAULTS.plot_kwargs["timeseries_obs"], **kwargs}
-        kwargs_fill = {**DEFAULTS.plot_kwargs["timeseries_fill"], **kwargs}
+        kwargs_obs = {**DEFAULTS["plot_kwargs"]["timeseries_obs"], **kwargs}
+        kwargs_fill = {**DEFAULTS["plot_kwargs"]["timeseries_fill"], **kwargs}
 
         for key in ["marker"]:  # kwargs that break fill
             kwargs_fill.pop(key, None)
@@ -1077,7 +1081,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - this method should be called after another plot so axis limit is set.
 
         """
-        kwargs = {**DEFAULTS.plot_kwargs["regression"], **kwargs}
+        kwargs = {**DEFAULTS["plot_kwargs"]["regression"], **kwargs}
 
         if "ax" in kwargs:
             ax = kwargs.pop("ax")
@@ -1110,7 +1114,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - axis instance.
 
         """
-        kwargs = {**DEFAULTS.text_kwargs["regression"], **kwargs}
+        kwargs = {**DEFAULTS["text_kwargs"]["regression"], **kwargs}
 
         text = ""
         if show_eqn:
@@ -1141,7 +1145,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
               (if supported), e.g., `nbias`, `nrmsd`.
 
         """
-        kwargs = {**DEFAULTS.text_kwargs["stats"], **kwargs}
+        kwargs = {**DEFAULTS["text_kwargs"]["stats"], **kwargs}
 
         text = ""
         for stat in self.stats:
@@ -1182,7 +1186,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases.
 
         """
-        kwargs = {**DEFAULTS.to_csv, **kwargs}
+        kwargs = {**DEFAULTS['to_csv'], **kwargs}
 
         ret = self._stats_frame("all")
         if freq is not None:
@@ -1473,7 +1477,7 @@ def plot_map(
               either 0<->360 or -180<-->180.
 
     """
-    kwargs = {**DEFAULTS.plot_kwargs["map"], **kwargs}
+    kwargs = {**DEFAULTS['plot_kwargs']["map"], **kwargs}
 
     # Set projection
     if list(bnd):
@@ -1750,7 +1754,7 @@ class VeriFrameMulti(VeriFrame):
             obslabel=self.ref_col,
             mod_cols=self.verify_cols,
             verify_labels=self.verify_labels,
-            rect="%i%i%i" % (nr, nc, 6),
+            rect=int(f"{nr}{nc}6"),
             colors=self.plot_colors,
         )
 
@@ -1789,13 +1793,13 @@ class VeriFrameMulti(VeriFrame):
             self,
             fig=plt.gcf(),
             obslabel=self.ref_col,
-            rect="%i%i%i" % (nr, nc, 6),
+            rect=int(f"{nr}{nc}6"),
             colors=self.plot_colors,
         )
 
         ii = 7
         for self.verify_col in self.verify_cols:
-            ax = plt.subplot("%i%i%i" % (nr, nc, ii))
+            ax = plt.subplot(int(f"{nr}{nc}{ii}"))
             ax.set_aspect("equal")
             self.plot_density_scatter(ax=ax, alpha=0.6, colorbar=False)
             self.add_regression(ax=ax, show_eqn=False, color="k")
