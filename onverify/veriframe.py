@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy.stats import gaussian_kde
-from attrdict import AttrDict
 from tabulate import tabulate
 import warnings
 import logging
@@ -28,10 +27,10 @@ try:
 except ImportError as err:
     print("Cannot import WebMapService, WMS layers will not be available", err)
 
-from onverify.core.regression import linear_regression
-from onverify.core.taylorDiagram import df2taylor
+from .core.regression import linear_regression
+from .core.taylorDiagram import df2taylor
+from .io.gbq import GBQAlt
 from onverify import stats, VARDEF, DEFAULTS
-from onverify.io.gbq import GBQAlt
 
 
 logger = logging.getLogger(__name__)
