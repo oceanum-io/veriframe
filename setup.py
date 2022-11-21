@@ -31,6 +31,7 @@ requirements = [
     "netcdf4",
     "h5netcdf",
     "six",
+    "ontake @ git+https://oceanum-dev:HDHoTNDnXekSMSHr3Yp1@gitlab.com/oceanum/ontake@v1.2.12",
 ]
 
 setup_requirements = ["pytest-runner"]
