@@ -89,7 +89,10 @@ class AxisVerify:
     def _get_path_coords(self, path):
         """Returns coordinates in PathCollection."""
         offsets = path.get_offsets()  # Scatter
-        vertices = path.get_paths()[0].vertices  # Contourf
+        paths = path.get_paths()
+        if not paths:
+            return offsets
+        vertices = paths[0].vertices  # Contourf
         if (
             vertices[:, 0].min() == -0.5
             and vertices[:, 0].max() == 0.5
@@ -146,16 +149,12 @@ class AxisVerify:
         xdata = []
         ydata = []
 
-        # Not sure what this is doing Raf?
-        # for method in methods:
-            # x, y = getattr(self, method)(ax)
-            # xdata.append(x)
-            # ydata.append(y)
-        # xdata = np.array(self._flatten_list(xdata, []))
-        # ydata = np.array(self._flatten_list(ydata, []))
-        # Substituted next two lines for now
-        xdata = self[self.ref_col]
-        ydata = self[self.verify_col]
+        for method in methods:
+            x, y = getattr(self, method)(ax)
+            xdata.append(x)
+            ydata.append(y)
+        xdata = np.array(self._flatten_list(xdata, []))
+        ydata = np.array(self._flatten_list(ydata, []))
 
         if equal:
             xdata = np.concatenate((xdata, ydata))
