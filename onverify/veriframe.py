@@ -145,6 +145,7 @@ class AxisVerify:
         ]
         xdata = []
         ydata = []
+
         # Not sure what this is doing Raf?
         # for method in methods:
             # x, y = getattr(self, method)(ax)
@@ -152,9 +153,10 @@ class AxisVerify:
             # ydata.append(y)
         # xdata = np.array(self._flatten_list(xdata, []))
         # ydata = np.array(self._flatten_list(ydata, []))
-        # Substituted nestjk
+        # Substituted next two lines for now
         xdata = self[self.ref_col]
         ydata = self[self.verify_col]
+
         if equal:
             xdata = np.concatenate((xdata, ydata))
             ydata = xdata
