@@ -45,6 +45,7 @@ vars:
     wsp:    {long_name: wind speed, units: "$ms^{-1}$"}
     wdr:    {long_name: wind direction, units: $^\circ$}
     power:  {long_name: wind power, units: "$kW$"}
+    radiation:  {long_name: solar radiation, units: "$Wm^{-2}$"}
 
 plotspecs:
     # scalar vars ---------------------------------------------------------------------------------------------------------
