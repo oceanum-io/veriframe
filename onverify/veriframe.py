@@ -27,9 +27,9 @@ try:
 except ImportError as err:
     print("Cannot import WebMapService, WMS layers will not be available", err)
 
-from .core.regression import linear_regression
-from .core.taylorDiagram import df2taylor
-from .io.gbq import GBQAlt
+from onverify.core.regression import linear_regression
+from onverify.core.taylorDiagram import df2taylor
+from onverify.io.gbq import GBQAlt
 from onverify import stats, VARDEF, DEFAULTS
 
 
@@ -348,7 +348,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         """
         df = self.copy(deep=True)
         for t in times:
-            row = pd.DataFrame(data={c: np.nan for c in vf.columns}, index=[t])
+            row = pd.DataFrame(data={c: np.nan for c in df.columns}, index=[t])
             if t not in df.index:
                 df = df.append(row)
         return df.sort_index().interpolate()
