@@ -102,3 +102,19 @@ to_csv:
 
 tabulate:
     tablefmt: psql
+
+stats:
+    - bias
+    - rmsd
+    - si
+    - n
+
+_stats_table:
+    - n
+    - bias
+    - rmsd
+    - si
+    - mad
+    - mrad
+    - nbias
+    - nrmsd

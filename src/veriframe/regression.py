@@ -1,20 +1,16 @@
 import numpy as np
 import numpy.ma as ma
-from scipy import polyfit, polyval
+from numpy import polyfit, polyval
 from scipy import stats
 
 
 def linear_regression(xin, yin, order=1, dtype="float64"):
-    """
-    Performs linear regressions of xin onto yin
-    """
+    """Performs linear regressions of xin onto yin."""
     return linear_regression_poly(xin, yin, order=order, dtype=dtype)
 
 
 def linear_regression_poly(xin, yin, order=1, dtype="float64"):
-    """
-    Performs linear regressions of xin onto yin
-    """
+    """Performs linear regressions of xin onto yin."""
     x = ma.fix_invalid(xin.astype(dtype))
     y = ma.fix_invalid(yin.astype(dtype))
 
@@ -26,9 +22,7 @@ def linear_regression_poly(xin, yin, order=1, dtype="float64"):
 
 
 def linear_regression_scipy(xin, yin, order=1, dtype="float64"):
-    """
-    Performs linear regressions of xin onto yin
-    """
+    """Performs linear regressions of xin onto yin."""
     x = ma.fix_invalid(xin.astype(dtype))
     y = ma.fix_invalid(yin.astype(dtype))
 
@@ -43,9 +37,7 @@ def linear_regression_scipy(xin, yin, order=1, dtype="float64"):
 
 
 def linear_regression_zero(xin, yin, order=1, dtype="float64"):
-    """
-    Performs linear regressions of xin onto yin
-    """
+    """Performs linear regressions of xin onto yin."""
     x = ma.fix_invalid(xin.astype(dtype))
     y = ma.fix_invalid(yin.astype(dtype))
     # Ensure common mask
@@ -57,16 +49,13 @@ def linear_regression_zero(xin, yin, order=1, dtype="float64"):
 
 
 def linear_correct(coeffs, model):
-    """Corrects model based in linear regression coefficients
-       from linear_regression"""
+    """Corrects model based in linear regression coefficients."""
     corr = (model - coeffs[1]) / coeffs[0]
     return corr
 
 
 def linear_regression_manual(xin, yin, dtype="float64"):
-    """
-    Performs linear regressions of xin onto yin
-    """
+    """Performs linear regressions of xin onto yin."""
     x = ma.fix_invalid(xin.astype(dtype))
     y = ma.fix_invalid(yin.astype(dtype))
     # Ensure common mask
@@ -76,7 +65,7 @@ def linear_regression_manual(xin, yin, dtype="float64"):
     # yym = ma.mean(y*y)
     xm = ma.mean(x)
     ym = ma.mean(y)
-    a = (xym - xm * ym) / (xxm - xm ** 2)
+    a = (xym - xm * ym) / (xxm - xm**2)
     b = ym - a * xm
     coeffs = [a, b]
     yr = polyval(coeffs, yin)

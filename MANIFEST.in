@@ -3,8 +3,6 @@ include CONTRIBUTING.rst
 include HISTORY.rst
 include LICENSE
 include README.rst
-include onverify/defaults.yml
-include onverify/vardef.yml
 
 recursive-include tests *
 recursive-exclude * __pycache__

@@ -1,54 +1,37 @@
-import os
+from pathlib import Path
 import pytest
 import pandas as pd
 
-from onverify.veriframe import VeriFrame
-
-FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_files")
+from veriframe.veriframe import VeriFrame
 
 
-class TestStatDataFrame(object):
+DATADIR = Path(__file__).parent / "data"
+
+
+@pytest.fixture(scope="module")
+def data():
+    """Colocs dataframe to use with tests."""
+    df = pd.read_csv(DATADIR / "colocs.csv")
+    df.index = pd.to_datetime(df["time"])
+    yield df.drop("time", axis=1)
+
+
+@pytest.mark.parametrize(
+    "stat, value, kwargs",
+    [
+        ("bias", 0.088, {}),
+        ("bias", 0.041, dict(norm=True)),
+        ("rmsd", 0.261, {}),
+        ("rmsd", 0.122, dict(norm=True)),
+        ("si", 0.114, {}),
+        ("mad", 0.204, {}),
+        ("mad", 0.095, dict(norm=True)),
+        ("mrad", 0.105, {}),
+        ("ks", 0.087, {}),
+    ]
+)
+def test_stats(data, stat, value, kwargs):
     """Test stats methods from VeriFrame."""
+    vf = VeriFrame(data, ref_col="hs_obs", verify_col="hs_hds")
+    assert getattr(vf, stat)(**kwargs) == pytest.approx(value, rel=0.01)
 
-    @classmethod
-    def setup_class(self):
-        """Read data and define objects."""
-        self.df = pd.read_pickle(os.path.join(FILES_DIR, "collocs.pkl"))
-        self.vf = VeriFrame(self.df, ref_col="hs_obs", verify_col="hs_mod")
-        self.stats = {
-            "bias": 0.101,
-            "nbias": 0.054,
-            "rmsd": 0.331,
-            "nrmsd": 0.177,
-            "si": 0.168,
-            "mad": 0.243,
-            "mrad": 0.148,
-        }
-
-    def test_bias(self):
-        stat = self.vf.bias()
-        assert stat == pytest.approx(self.stats["bias"], rel=0.01)
-
-    def test_nbias(self):
-        stat = self.vf.bias(norm=True)
-        assert stat == pytest.approx(self.stats["nbias"], rel=0.01)
-
-    def test_rmsd(self):
-        stat = self.vf.rmsd()
-        assert stat == pytest.approx(self.stats["rmsd"], rel=0.01)
-
-    def test_nrmsd(self):
-        stat = self.vf.rmsd(norm=True)
-        assert stat == pytest.approx(self.stats["nrmsd"], rel=0.01)
-
-    def test_si(self):
-        stat = self.vf.si()
-        assert stat == pytest.approx(self.stats["si"], rel=0.01)
-
-    def test_mad(self):
-        stat = self.vf.mad()
-        assert stat == pytest.approx(self.stats["mad"], rel=0.01)
-
-    def test_mrad(self):
-        stat = self.vf.mrad()
-        assert stat == pytest.approx(self.stats["mrad"], rel=0.01)

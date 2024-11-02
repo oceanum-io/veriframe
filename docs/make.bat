@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=onverify
+set SPHINXPROJ=veriframe
 
 if "%1" == "" goto help
 

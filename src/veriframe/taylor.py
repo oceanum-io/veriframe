@@ -12,7 +12,6 @@ __author__ = "Yannick Copin <yannick.copin@laposte.net>"
 
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 import logging
 import os
 
@@ -85,7 +84,7 @@ class TaylorDiagram(object):
 
         # Add reference point and stddev contour
         logging.debug("Reference std: %s" % self.refstd)
-        l, = self.ax.plot([0], self.refstd, "k*", ls="", ms=10, label=label)
+        (l,) = self.ax.plot([0], self.refstd, "k*", ls="", ms=10, label=label)
         t = np.linspace(0, np.pi / 2)
         r = np.zeros_like(t) + self.refstd
         self.ax.plot(t, r, "k--", label="_")
@@ -98,7 +97,7 @@ class TaylorDiagram(object):
         and kwargs are directly propagated to the Figure.plot
         command."""
 
-        l, = self.ax.plot(
+        (l,) = self.ax.plot(
             np.arccos(corrcoef), stddev, *args, **kwargs
         )  # (theta,radius)
         self.samplePoints.append(l)
@@ -112,7 +111,7 @@ class TaylorDiagram(object):
             np.linspace(self.smin, self.smax), np.linspace(0, np.pi / 2)
         )
         # Compute centered RMS difference
-        rms = np.sqrt(self.refstd ** 2 + rs ** 2 - 2 * self.refstd * rs * np.cos(ts))
+        rms = np.sqrt(self.refstd**2 + rs**2 - 2 * self.refstd * rs * np.cos(ts))
 
         contours = self.ax.contour(ts, rs, rms, levels, **kwargs)
 

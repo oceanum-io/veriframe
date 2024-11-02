@@ -1,56 +1,35 @@
-import os
+"""Pandas DataFrame for model verification."""
+from pathlib import Path
 import yaml
-import datetime
 import matplotlib.pyplot as plt
-from matplotlib import cm, colors
-import matplotlib.ticker as mticker
 import matplotlib.offsetbox as offsetbox
-from matplotlib.font_manager import FontProperties
 from matplotlib.projections.polar import PolarAxes
-from matplotlib.collections import PathCollection, LineCollection, PolyCollection
+from matplotlib.collections import PathCollection
 import numpy as np
 import pandas as pd
 import xarray as xr
 from scipy.stats import gaussian_kde
 from tabulate import tabulate
-import warnings
 import logging
+import cartopy.crs as ccrs
 
-try:
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-except ImportError as err:
-    print("Cannot import cartopy, plot_map will not work", err)
-try:
-    from owslib.wms import WebMapService
-except ImportError as err:
-    print("Cannot import WebMapService, WMS layers will not be available", err)
-
-from onverify.core.regression import linear_regression
-from onverify.core.taylorDiagram import df2taylor
-from onverify.io.gbq import GBQAlt
-from onverify import stats, VARDEF, DEFAULTS
+from veriframe import stats
+from veriframe.regression import linear_regression
+from veriframe.taylor import df2taylor
 
 
 logger = logging.getLogger(__name__)
 
 
-# TODO: make depth contour map more efficient
-# TODO: fix downstream dependencies
-# TODO: pass multiple kwarg dicts when more than one plot is made
-# TODO: fix labelling in polar scatter
-
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = Path(__file__).parent
 ETOPO = "https://www.ngdc.noaa.gov/thredds/dodsC/global/ETOPO1_Bed_g_gmt4.nc"
 FONTSIZE_LABEL = 14
 
-# Pandas does not like setting a list as a DataFrame attribute
-warnings.filterwarnings(
-    action="ignore",
-    category=UserWarning,
-    message="Pandas doesn't allow columns to be created via a new attribute name",
-)
+with open(HERE / "vardef.yml") as stream:
+    VARDEF = yaml.load(stream, Loader=yaml.Loader)
+
+with open(HERE / "defaults.yml") as stream:
+    DEFAULTS = yaml.load(stream, Loader=yaml.Loader)
 
 
 def set_docstring(fun):
@@ -67,70 +46,60 @@ def set_docstring(fun):
 class AxisVerify:
     """Class for Formatting axis in VeriFrame."""
 
-    def _flatten_list(self, l, a):
-        """Flatten list of lists."""
-        for i in l:
-            if isinstance(i, list):
-                self._flatten_list(i, a)
+    def _extract_min_max_coords(self, ax):
+        from matplotlib.collections import PolyCollection, PathCollection
+        from matplotlib.lines import Line2D
+        from matplotlib.patches import Polygon
+        from matplotlib.contour import QuadContourSet
+
+        min_x, max_x = float("inf"), float("-inf")
+        min_y, max_y = float("inf"), float("-inf")
+
+        for child in ax.get_children():
+            if isinstance(child, Line2D):
+                x_data = child.get_xdata()
+                y_data = child.get_ydata()
+            elif isinstance(child, PolyCollection):  # For hexbin
+                for path in child.get_paths():
+                    vertices = path.vertices
+                    x_data = vertices[:, 0]
+                    y_data = vertices[:, 1]
+                    min_x = min(min_x, np.min(x_data))
+                    max_x = max(max_x, np.max(x_data))
+                    min_y = min(min_y, np.min(y_data))
+                    max_y = max(max_y, np.max(y_data))
+            elif isinstance(child, PathCollection):  # For scatter
+                offsets = child.get_offsets()
+                x_data = offsets[:, 0]
+                y_data = offsets[:, 1]
+                min_x = min(min_x, np.min(x_data))
+                max_x = max(max_x, np.max(x_data))
+                min_y = min(min_y, np.min(y_data))
+                max_y = max(max_y, np.max(y_data))
+            elif isinstance(child, Polygon):  # Sometimes contours use Polygon
+                vertices = child.get_xy()
+                x_data = vertices[:, 0]
+                y_data = vertices[:, 1]
+                min_x = min(min_x, np.min(x_data))
+                max_x = max(max_x, np.max(x_data))
+                min_y = min(min_y, np.min(y_data))
+                max_y = max(max_y, np.max(y_data))
+            elif isinstance(child, QuadContourSet):  # For contour and contourf
+                for collection in child.collections:
+                    for path in collection.get_paths():
+                        vertices = path.vertices
+                        x_data = vertices[:, 0]
+                        y_data = vertices[:, 1]
+                        min_x = min(min_x, np.min(x_data))
+                        max_x = max(max_x, np.max(x_data))
+                        min_y = min(min_y, np.min(y_data))
+                        max_y = max(max_y, np.max(y_data))
             else:
-                a.append(i)
-        return a
+                continue
 
-    def _coordinates_from_lines(self, ax):
-        """Returns coordinates of lines."""
-        lines = ax.get_lines()
-        xdata = []
-        ydata = []
-        if lines:
-            xdata += [l.get_xdata().tolist() for l in lines]
-            ydata += [l.get_ydata().tolist() for l in lines]
-        return xdata, ydata
+        return min_x, max_x, min_y, max_y
 
-    def _get_path_coords(self, path):
-        """Returns coordinates in PathCollection."""
-        offsets = path.get_offsets()  # Scatter
-        paths = path.get_paths()
-        if not paths:
-            return offsets
-        vertices = paths[0].vertices  # Contourf
-        if (
-            vertices[:, 0].min() == -0.5
-            and vertices[:, 0].max() == 0.5
-            and vertices[:, 1].min() == -0.5
-            and vertices[:, 0].max() == 0.5
-        ):
-            return offsets
-        if offsets.shape[0] >= vertices.shape[0]:
-            return offsets
-        else:
-            return vertices
-
-    def _coordinates_from_paths(self, ax):
-        """Returns coordinates of paths: scatter, contourf."""
-        paths = [c for c in ax.get_children() if isinstance(c, PathCollection)]
-        xdata = []
-        ydata = []
-        for path in paths:
-            array = self._get_path_coords(path)
-            xdata += array[:, 0].tolist()
-            ydata += array[:, 1].tolist()
-        return xdata, ydata
-
-    def _coordinates_from_contours(self, ax):
-        """Returns coordinates of contours."""
-        lines = [c for c in ax.get_children() if isinstance(c, LineCollection)]
-        xdata = [l.get_segments()[0][:, 0].tolist() for l in lines if l.get_segments()]
-        ydata = [l.get_segments()[0][:, 1].tolist() for l in lines if l.get_segments()]
-        return xdata, ydata
-
-    def _coordinates_from_hexbin(self, ax):
-        """Returns coordinates of contours."""
-        polys = [c for c in ax.get_children() if isinstance(c, PolyCollection)]
-        xdata = [poly.get_offsets()[:, 0].tolist() for poly in polys]
-        ydata = [poly.get_offsets()[:, 1].tolist() for poly in polys]
-        return xdata, ydata
-
-    def set_xylimit(self, ax, equal=False, offset=0.02, xlim=None, ylim=None):
+    def set_xylimit(self, ax, equal=True, offset=0.02, xlim=None, ylim=None):
         """Set limit for axis based on plotted data.
 
         Retrieves data from axis to define x,y extensions.
@@ -143,26 +112,16 @@ class AxisVerify:
             - ``ylim`` (tuple): y-limits for axis, if None inferred from data.
 
         """
-        methods = [
-            method for method in dir(self) if method.startswith("_coordinates_from")
-        ]
-        xdata = []
-        ydata = []
-
-        for method in methods:
-            x, y = getattr(self, method)(ax)
-            xdata.append(x)
-            ydata.append(y)
-        xdata = np.array(self._flatten_list(xdata, []))
-        ydata = np.array(self._flatten_list(ydata, []))
-
+        min_x, max_x, min_y, max_y = self._extract_min_max_coords(ax)
         if equal:
-            xdata = np.concatenate((xdata, ydata))
-            ydata = xdata
-        xoff = offset * (xdata.max() - xdata.min())
-        yoff = offset * (ydata.max() - ydata.min())
-        xlim = xlim or (xdata.min() - xoff, xdata.max() + xoff)
-        ylim = ylim or (ydata.min() - yoff, ydata.max() + yoff)
+            min_x = min(min_x, min_y)
+            max_x = max(max_x, max_y)
+            min_y = min_x
+            max_y = max_x
+        xoff = offset * (max_x - min_x)
+        yoff = offset * (max_y - min_y)
+        xlim = xlim or (min_x - xoff, max_x + xoff)
+        ylim = ylim or (min_y - yoff, max_y + yoff)
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         return ax
@@ -269,15 +228,16 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         verify_label = kwargs.pop("verify_label", verify_col)
 
         super().__init__(*args, **kwargs)
-        self.ref_col = ref_col
-        self.verify_col = verify_col
-        self.ref_label = ref_label
-        self.verify_label = verify_label
-        self.var = var
-        self.circular = circular
+        setattr(self, "ref_col", ref_col)
+        setattr(self, "verify_col", verify_col)
+        setattr(self, "ref_label", ref_label)
+        setattr(self, "verify_label", verify_label)
+        setattr(self, "var", var)
+        setattr(self, "time_fmt", "%Y-%m-%d")
+        setattr(self, "circular", circular)
         if self.circular:
-            self[self.ref_col] %= 360
-            self[self.verify_col] %= 360
+            setattr(self, "ref_col", self.ref_col % 360)
+            setattr(self, "verify_col", self.verify_col % 360)
         # Setting lonlat attrs from dataframe if a string is provided
         if lat in self.columns and lon in self.columns:
             self.lat = self[lat]
@@ -285,11 +245,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         else:
             self.lat = lat if lat is not None else None
             self.lon = lon if lon is not None else None
-        self.time_fmt = "%Y-%m-%d"
-        # Used for adding stats to axis:
-        self.stats = ["bias", "rmsd", "si"]
-        # Used for defining stats table
-        self._stats_table = ["n", "bias", "rmsd", "si", "mad", "mrad", "nbias", "nrmsd"]
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>\n{super().__repr__()}"
@@ -337,7 +292,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
     def _get_cdf(self, col):
         """Return arrays for a CDF plot."""
         x = self[col].sort_values()
-        n = np.arange(1, len(x) + 1) / np.float(len(x))
+        n = np.arange(1, len(x) + 1) / float(len(x))
         return x, n
 
     def _fill_times(self, times):
@@ -348,15 +303,15 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         """
         df = self.copy(deep=True)
         for t in times:
-            row = pd.DataFrame(data={c: np.nan for c in df.columns}, index=[t])
+            row = pd.DataFrame(data={c: np.nan for c in vf.columns}, index=[t])
             if t not in df.index:
                 df = df.append(row)
         return df.sort_index().interpolate()
 
-    def _stats_frame(self, label):
+    def _stats_frame(self, label="stats"):
         """Returns dataframe with stats."""
         ret = {}
-        for col in self._stats_table:
+        for col in DEFAULTS["_stats_table"]:
             if col == "n":
                 ret[col.upper()] = int(self.nsamp)
             else:
@@ -393,9 +348,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             return VARDEF["vars"][self.var]["units"]
         except KeyError:
             print(
-                f"Variable {self.var} not implemented in "
-                f"{os.path.abspath(os.path.join(HERE, 'vardef.yml'))}. Available "
-                f"variables: {','.join(VARDEF['vars'].keys())}"
+                f"Variable {self.var} not defined in {HERE / 'vardef.yml'}. "
+                f"Available variables: {','.join(VARDEF['vars'].keys())}"
             )
             return ""
 
@@ -460,7 +414,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
               in the scatter are highlighted.
 
         """
-        kwargs = {**DEFAULTS['plot_kwargs']["scatter"], **kwargs}
+        kwargs = {**DEFAULTS["plot_kwargs"]["scatter"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure()
@@ -501,7 +455,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - axis instance.
 
         """
-        kwargs = {**DEFAULTS['plot_kwargs']["qq"], **kwargs}
+        kwargs = {**DEFAULTS["plot_kwargs"]["qq"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -549,8 +503,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             kwargs["ax"] = fig.add_subplot(111)
 
-        scatter_kw = {**DEFAULTS['plot_kwargs']["scatter"], **scatter_kw, **kwargs}
-        qq_kw = {**DEFAULTS['plot_kwargs']["qq"], **qq_kw, **kwargs}
+        scatter_kw = {**DEFAULTS["plot_kwargs"]["scatter"], **scatter_kw, **kwargs}
+        qq_kw = {**DEFAULTS["plot_kwargs"]["qq"], **qq_kw, **kwargs}
 
         self.plot_scatter(showeq=False, **scatter_kw)
         self.plot_qq(increment=increment, showeq=showeq, xlim=xlim, ylim=ylim, **qq_kw)
@@ -586,7 +540,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - The ``colorbar`` argument requires ``c`` to be prescribed.
 
         """
-        kwargs = {**DEFAULTS['plot_kwargs']["polar"], **kwargs}
+        kwargs = {**DEFAULTS["plot_kwargs"]["polar"], **kwargs}
 
         if "ax" not in kwargs:
             fig = plt.figure(figsize=(6, 6))
@@ -625,38 +579,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
 
         return ax
 
-    def plot_density_hexbin(
-        self, showeq=True, colorbar=True, xlim=None, ylim=None, **kwargs
-    ):
-        """Hexbin density plot of model vs observations.
-
-        Args:
-            - ``showeq`` (bool): show equality line if True.
-            - ``colorbar`` (bool): show colorbar if True.
-            - ``xlim`` (tuple): x-limits for axis, if None inferred from data.
-            - ``ylim`` (tuple): y-limits for axis, if None inferred from data.
-            - ``kwargs``: options to pass to matplotlib plotting method.
-
-        Returns:
-            - axis instance.
-
-        Note:
-            - the colours represent the number of datapoints per hexagon.
-        """
-        kwargs = {**DEFAULTS['plot_kwargs']["density_hexbin"], **kwargs}
-
-        if "ax" not in kwargs:
-            fig = plt.figure(figsize=(6, 6))
-            kwargs["ax"] = fig.add_subplot(111)
-        self.plot(x=self.ref_col, y=self.verify_col, kind="hexbin", **kwargs)
-        self.set_xylimit(kwargs["ax"], equal=True, xlim=xlim, ylim=ylim)
-        self._set_axis_label(kwargs["ax"])
-        if showeq:
-            self._show_equality(kwargs["ax"])
-        if colorbar:
-            pass
-        return kwargs["ax"]
-
     def plot_density_contour(
         self, binsize=None, showeq=True, colorbar=True, xlim=None, ylim=None, **kwargs
     ):
@@ -678,7 +600,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - The colours represent the relative density of datapoints.
 
         """
-        kwargs = {**DEFAULTS['plot_kwargs']["density_contour"], **kwargs}
+        kwargs = {**DEFAULTS["plot_kwargs"]["density_contour"], **kwargs}
+        isgrid = kwargs.pop("grid", False)
 
         if "ax" in kwargs:
             ax = kwargs.pop("ax")
@@ -699,7 +622,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             self._show_equality(ax)
         if colorbar:
             plt.colorbar(mappable=cobj)
-        ax.grid(kwargs.get("grid", False))
+        ax.grid(isgrid)
         return ax
 
     def plot_density_scatter(
@@ -721,7 +644,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - The colours represent the relative density of datapoints.
 
         """
-        kwargs = {**DEFAULTS['plot_kwargs']["density_scatter"], **kwargs}
+        kwargs = {**DEFAULTS["plot_kwargs"]["density_scatter"], **kwargs}
 
         ax = kwargs.pop("ax", None)
         is_grid = kwargs.pop("grid")
@@ -752,6 +675,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         show_mod=True,
         show_obs=True,
         show_hist=False,
+        show_legend=True,
         loc=1,
         xlim=None,
         ylim=None,
@@ -763,6 +687,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - ``show_mod`` (bool): if True model timeseries is plotted.
             - ``show_obs`` (bool): if True obs timeseries is plotted.
             - ``show_hist`` (bool): if True normilised histogram is plotted.
+            - ``show_legend`` (bool): if True legend is shown.
             - ``loc`` (int, str): location code for legend.
             - ``xlim`` (tuple): x-limits for axis, if None inferred from data.
             - ``ylim`` (tuple): y-limits for axis, if None inferred from data.
@@ -778,7 +703,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             fig = plt.figure(figsize=(6, 6))
             ax = fig.add_subplot(111)
 
-        kwargs_mod = {**DEFAULTS['plot_kwargs']["pdf_mod"], **kwargs}
+        kwargs_mod = {**DEFAULTS["plot_kwargs"]["pdf_mod"], **kwargs}
         # If color kwarg is provided, use for model only
         kwargs.pop("color", None)
         kwargs_obs = {**DEFAULTS["plot_kwargs"]["pdf_obs"], **kwargs}
@@ -792,7 +717,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             if show_hist:
                 ax.hist(
                     self[self.ref_col],
-                    normed=True,
+                    density=True,
                     facecolor=kwargs_obs["color"],
                     label=None,
                     **kwargs_hist,
@@ -804,7 +729,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             if show_hist:
                 ax.hist(
                     self[self.verify_col],
-                    normed=True,
+                    density=True,
                     facecolor=kwargs_mod["color"],
                     color=kwargs_mod["color"],
                     label=None,
@@ -822,18 +747,20 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         )
         ax.set_ylabel("Density", fontsize=FONTSIZE_LABEL)
 
-        lgd = self.legend(ax=ax, loc=loc)
+        if show_legend:
+            lgd = self.legend(ax=ax, loc=loc)
 
         return ax
 
     def plot_cdf(
-        self, show_mod=True, show_obs=True, loc=2, xlim=None, ylim=None, **kwargs
+        self, show_mod=True, show_obs=True, show_legend=True, loc=2, xlim=None, ylim=None, **kwargs
     ):
         """Cumulative density function plot.
 
         Args:
             - ``show_mod`` (bool): if True model timeseries is plotted.
             - ``show_obs`` (bool): if True obs timeseries is plotted.
+            - ``show_legend`` (bool): if True legend is shown.
             - ``loc`` (int, str): location code for legend.
             - ``xlim`` (tuple): x-limits for axis, if None inferred from data.
             - ``ylim`` (tuple): y-limits for axis, if None inferred from data.
@@ -871,12 +798,13 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         )
         ax.set_ylabel("Cumulative density", fontsize=FONTSIZE_LABEL)
 
-        lgd = self.legend(ax=ax, loc=loc)
+        if show_legend:
+            lgd = self.legend(ax=ax, loc=loc)
 
         return ax
 
     def plot_timeseries(
-        self, show_mod=True, show_obs=True, fill_under_obs=False, **kwargs
+        self, show_mod=True, show_obs=True, fill_under_obs=False, tcol="time", **kwargs
     ):
         """Timeseries plot of model and|or observations.
 
@@ -890,6 +818,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - axis instance.
 
         """
+        from dateutil.parser import parse
+
         if "ax" in kwargs:
             ax = kwargs.pop("ax")
         else:
@@ -906,7 +836,14 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         for key in ["marker"]:  # kwargs that break fill
             kwargs_fill.pop(key, None)
 
-        dtimes = [t.to_pydatetime() for t in self.index]
+        try:
+            dtimes = [t.to_pydatetime() for t in self.index]
+        except AttributeError:
+            try:
+                dtimes = [parse(t) for t in self[tcol]]
+            except TypeError:
+                dtimes = self[tcol].values
+
         if show_obs:
             if fill_under_obs:
                 kwargs_lgd = {
@@ -925,146 +862,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             "${}$ ({})".format(self.var.title(), self.units), fontsize=FONTSIZE_LABEL
         )
         lgd = self.legend(ax=ax)
-        return ax
-
-    def plot_subtimeseries(
-        self,
-        nsubs=None,
-        ndays=None,
-        ymin=None,
-        ymax=None,
-        show_mod=True,
-        show_obs=True,
-        fill_under_obs=False,
-        **kwargs,
-    ):
-        """
-
-        Args:
-            - ``nsubs`` (int): number of subplot panels.
-            - ``ndays`` (float): number of days in each subplot panel.
-            - ``ymin`` (float): minimum value for y-axis in all subplots.
-            - ``ymax`` (float): maximum value for y-axis in all subplots.
-            - ``show_mod`` (bool): if True model timeseries is plotted.
-            - ``show_obs`` (bool): if True obs timeseries is plotted.
-            - ``fill_under_obs`` (bool): if True obs is shown as a fill patch.
-
-        Returns:
-            - figure instance.
-
-        Note:
-            - Either ``nsubs`` or ``ndays`` must be provided to define suplots,
-              if both are provided, ``nsubs`` takes precedence.
-        """
-        assert nsubs or ndays, "Either nsubs or ndays must be specified."
-
-        nsubs = nsubs or int(np.ceil(float(total_days) / ndays))
-        ndays = ndays or np.ceil((self.index[-1] - self.index[0]).days) / nsubs
-
-        kwargs_self = {
-            key: getattr(self, key)
-            for key in ["ref_col", "verify_col", "ref_label", "verify_label", "var"]
-        }
-
-        if "fig" in kwargs:
-            fig = kwargs.pop("fig")
-        else:
-            if nsubs == 1:
-                fig = plt.figure(figsize=(12, 5 * nsubs))
-            else:
-                fig = plt.figure(figsize=(12, 3 * nsubs))
-        is_grid = kwargs.pop("grid", True)
-
-        axes = fig.get_axes()
-
-        t1 = self.index[0]
-        t2 = t1 + datetime.timedelta(days=ndays)
-        for isub in range(nsubs):
-            ax = fig.add_subplot(nsubs, 1, isub + 1)
-            df = self._fill_times([t1, t2])
-            vf = VeriFrame(df.loc[t1:t2], **kwargs_self)
-            axes.append(
-                vf.plot_timeseries(
-                    ax=ax,
-                    show_mod=show_mod,
-                    show_obs=show_obs,
-                    fill_under_obs=fill_under_obs,
-                    **kwargs,
-                )
-            )
-            ax.set_ylim(ymin, ymax)
-            ax.set_xlim(t1, t2)
-            t1 = t2
-            t2 = t1 + datetime.timedelta(days=ndays)
-        # Keep legend only in first subplot
-        for ax in axes[1:]:
-            ax.get_legend().set_visible(False)
-        return fig
-
-    def plot_map(
-        self,
-        buff=2,
-        subplot=111,
-        fig=None,
-        etopo=False,
-        levels=[50, 300, 1000, 2000, 5000],
-        resolution="110m",
-        land=False,
-        ocean=False,
-        coastline=False,
-        layer="BlueMarble_ShadedRelief_Bathymetry",
-        **kwargs,
-    ):
-        """Plot map of obs location.
-
-        Args:
-            - ``buff`` (float): lat-lon buffer for extending map beyond points.
-            - ``subplot`` (int): subplot axis positioning in figure.
-            - ``fig`` (obj): matplotlib figure instance for drawing map on.
-            - ``etopo`` (bool): if True depth contours are downloaded and plotted from etopo.
-            - ``levels`` (list): depth levels to plot if ``etopo==True``.
-            - ``resolution`` (str): feature resolution, one of ``110m``, ``50m`` or ``10m``.
-            - ``land`` (bool): if True land feature is added at defined ``resolution``.
-            - ``ocean`` (bool): if True ocean feature is added at defined ``resolution``.
-            - ``coastline`` (bool): if True coastline feature is added at defined ``resolution``.
-            - ``layer`` (str, darray):
-                - str: name of wmts raster layer to show on map.
-                - darray: 2d DataArray object to plot on map.
-            - ``kwargs``: options to pass to matplotlib plotting method.
-
-        Note:
-            - Default options draws `BlueMarble_ShadedRelief_Bathymetry` layer.
-            - ``etopo=True`` slows down code as etopo needs to be downloaded.
-            - ``resolution='10m'`` produces detailed features but is slow.
-            - If DataArray is used for layer it needs to:
-                - be 2-dimensional.
-                - have coordinates named as (`lat`, `lon`).
-                - use same convention for longitude as in obs sites,
-                  either 0<->360 or -180<-->180.
-
-        Returns:
-            - axis instance.
-
-        """
-        assert (
-            self.lat is not None and self.lon is not None
-        ), "lat and lon attributes have not been defined."
-
-        ax = plot_map(
-            self.lat,
-            self.lon,
-            buff=buff,
-            subplot=subplot,
-            fig=fig,
-            resolution=resolution,
-            etopo=etopo,
-            levels=levels,
-            land=land,
-            ocean=ocean,
-            coastline=coastline,
-            layer=layer,
-            **kwargs,
-        )
         return ax
 
     def plot_regression(self, x=None, **kwargs):
@@ -1128,13 +925,14 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         ax = self.add_text(ax, text, loc=loc, **kwargs)
         return ax
 
-    def add_stats(self, ax, decimals=3, loc=2, **kwargs):
+    def add_stats(self, ax, decimals=3, loc=2, stats=DEFAULTS["stats"], **kwargs):
         """Adds stats to a plot axis.
 
         Args:
             - ``ax`` (object): axis instance to show stats on.
             - ``decimals`` (int): number of decimal places in stats.
             - ``loc`` (int, str): legend locaction, see options in self.add_text.
+            - ``stats`` (list): list of stats to display.
 
         Returns:
             - axis instance.
@@ -1149,23 +947,34 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         kwargs = {**DEFAULTS["text_kwargs"]["stats"], **kwargs}
 
         text = ""
-        for stat in self.stats:
+        non_supported = set(stats) - set(DEFAULTS["_stats_table"])
+        if non_supported:
+            raise ValueError(f"The following stats are supported: {non_supported}")
+        for stat in stats:
             if (
                 stat.startswith("n")
                 and len(stat) > 1
-                and getattr(self, "{}".format(stat[1:]), None)
+                and getattr(self, f"{stat[1:]}", None)
             ):
-                val = getattr(self, "{}".format(stat[1:]))(normalised=True)
+                val = getattr(self, f"{stat[1:]}")(normalised=True)
             else:
-                val = getattr(self, "{}".format(stat))()
-            text += "${} = {}$".format(
-                stat.upper(), str(np.around(val, decimals=decimals))
-            )
+                val = getattr(self, f"{stat}")()
+            text += f"${stat.upper()} = {str(np.around(val, decimals=decimals))}$"
             if stat in ["bias", "mad", "rmsd"]:
-                text += " {}".format(self.units)
+                text += f" {self.units}"
             text += "\n"
         ax = self.add_text(ax, text, loc=loc, **kwargs)
         return ax
+
+    def _month_to_season(self, month):
+        if month in [12, 1, 2]:
+            return "DJF"
+        elif month in [3, 4, 5]:
+            return "MAM"
+        elif month in [6, 7, 8]:
+            return "JJA"
+        elif month in [9, 10, 11]:
+            return "SON"
 
     def stats_table(self, freq=None, outfile=None, **kwargs):
         """Return DataFrame of verification statistics.
@@ -1183,22 +992,27 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         Returns:
             - Pandas DataFrame with stats summary.
 
-        Note: full frequency options can be checked in:
-        http://pandas.pydata.org/pandas-docs/stable/timeseries.html#offset-aliases.
+        Note:
+            - full frequency options can be checked in: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects.
+            - ``season`` is accepted as a frequency, in which case the stats are calculated for each season.
 
         """
-        kwargs = {**DEFAULTS['to_csv'], **kwargs}
+        df = self.copy(deep=True)
+
+        kwargs = {**DEFAULTS["to_csv"], **kwargs}
 
         ret = self._stats_frame("all")
         if freq is not None:
-            grouped = self.groupby(pd.Grouper(freq=freq))
+            if freq == "season":
+                df["season"] = df.index.month.map(self._month_to_season)
+                grouped = df.groupby("season")
+            else:
+                grouped = self.groupby(pd.Grouper(freq=freq))
             for group, df in grouped:
                 vf = VeriFrame(
                     df, ref_col=self.ref_col, verify_col=self.verify_col, var=self.var
                 )
-                ret = pd.concat(
-                    (ret, vf._stats_frame(group.strftime(self.time_fmt))), axis=1
-                )
+                ret = pd.concat((ret, vf._stats_frame(group)), axis=1)
         if outfile is not None:
             ret.to_csv(outfile, **kwargs)
         return ret
@@ -1215,7 +1029,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             - String with stats summary.
 
         """
-        kwargs = {**DEFAULTS.tabulate, **kwargs}
+        kwargs = {**DEFAULTS["tabulate"], **kwargs}
 
         stats = self.stats_table(freq=freq, outfile=None)
         table = tabulate(stats, headers="keys", **kwargs)
@@ -1257,8 +1071,8 @@ class VeriFrame(pd.DataFrame, AxisVerify):
 
         # Calculating gridded sums
         diff = model - obs
-        diff2 = model ** 2 - obs ** 2
-        msdall = diff ** 2
+        diff2 = model**2 - obs**2
+        msdall = diff**2
 
         n = np.histogram2d(self.lat, self.lon, bins=(latedges, lonedges))[0]
         bias_sum = np.histogram2d(
@@ -1361,202 +1175,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         df = getattr(pd, "read_" + kind)(filename, **kwargs)
         return cls(df, **verify_kw)
 
-    @classmethod
-    def from_gbq(
-        cls,
-        dset,
-        ref_col="obs",
-        verify_col="model",
-        project_id="oceanum-dev",
-        columns="minimum",
-        var=None,
-        circular=False,
-        ref_label=None,
-        verify_label=None,
-        **kwargs,
-    ):
-        """Alternative constructor to create a ``VeriFrame`` from GBQ table.
-
-        Args:
-            - ``dset`` (str): name of GBQ table to read from.
-            - ``ref_col`` (str): name of column with observation values.
-            - ``verify_col`` (str): name of column with model values.
-            - ``project_id`` (str): Project id where GBQ table is defined.
-            - ``columns`` (str): Column to load from GBQ table. Valid options are:
-                - ``minimum``: Equivalent to ["lon", "lat", f"{ref_col}", f"{verify_col}"].
-                - ``all``: Load all columns.
-                - List of columns to load.
-            - ``var`` (str): id of variable to verify, 'hs' by default (needs to be
-              defined in vardef.yml file).
-            - ``circular`` (bool): use True for circular arrays such as directions.
-            - ``ref_label`` (str): used for labelling obs in plots if provided,
-              otherwise constructed from ref_col, var, units.
-            - ``verify_label`` (str): used for labelling model in plots if provided,
-              otherwise constructed from verify_col, var, units.
-            - ``kwargs``: options to pass to `pandas.read_{kind}` method.
-
-        Returns:
-            - VeriFrame instance.
-
-        """
-        verify_kw = {"ref_col": ref_col, "verify_col": verify_col}
-        if var is not None:
-            verify_kw.update({"var": var})
-        if circular is not None:
-            verify_kw.update({"circular": circular})
-        if ref_label is not None:
-            verify_kw.update({"ref_label": ref_label})
-        if verify_label is not None:
-            verify_kw.update({"verify_label": verify_label})
-
-        if columns == "all":
-            variables = ["*"]
-        elif columns == "minimum":
-            variables = ["lon", "lat", ref_col, verify_col]
-        elif isinstance(columns, (list, tuple)):
-            variables = list(columns)
-        else:
-            raise ValueError(
-                "Columns must be one of 'minimum', 'all' or a list of columns."
-            )
-
-        gbqalt = GBQAlt(dset=dset, variables=variables, project_id=project_id)
-        df = gbqalt.get()
-        return cls(df, **verify_kw)
-
-
-def plot_map(
-    lat,
-    lon,
-    buff=2,
-    bnd=[],
-    subplot=111,
-    fig=None,
-    etopo=False,
-    levels=[50, 300, 1000, 2000, 5000],
-    resolution="110m",
-    land=False,
-    ocean=False,
-    coastline=False,
-    layer="BlueMarble_ShadedRelief_Bathymetry",
-    cmap="jet",
-    **kwargs,
-):
-    """Plot map of obs location.
-
-    Args:
-        - ``lat`` (float): latitude of point to plot on map.
-        - ``lon`` (float): longitude of point to plot on map.
-        - ``buff`` (float): lat-lon buffer for extending map beyond points.
-        - ``bnd`` (list) [xmin,xmax,ymin,ymax] for defining map boundary,
-          overwrite ``buff`` option if provided.
-        - ``subplot`` (int): subplot axis positioning in figure.
-        - ``fig`` (obj): matplotlib figure instance for drawing map on.
-        - ``etopo`` (bool): if True depth contours are downloaded and plotted from etopo.
-        - ``levels`` (list): depth levels to plot if ``etopo==True``.
-        - ``resolution`` (str): feature resolution, one of ``110m``, ``50m` or ``10m``.
-        - ``land`` (bool): if True land feature is added at defined ``resolution``.
-        - ``ocean`` (bool): if True ocean feature is added at defined ``resolution``.
-        - ``coastline`` (bool): if True coastline feature is added at defined ``resolution``.
-        - ``layer`` (str, darray):
-            - str: name of wmts raster layer to show on map.
-            - darray: 2d DataArray object to plot on map.
-        - ``cmap`` (str): colormap to use if layer is a dataarray object.
-        - ``kwargs``: options to pass to matplotlib plotting method.
-
-    Returns:
-        - axis instance.
-
-     Note:
-        - Default options draws `BlueMarble_ShadedRelief_Bathymetry` layer.
-        - ``etopo=True`` slows down code as etopo needs to be downloaded.
-        - ``resolution='10m'`` produces detailed fetures but is slow.
-        - If DataArray is used for layer it needs to:
-            - be 2-dimensional.
-            - have coordinates named as (`lat`, `lon`).
-            - use same convention for longitude as in obs sites,
-              either 0<->360 or -180<-->180.
-
-    """
-    kwargs = {**DEFAULTS['plot_kwargs']["map"], **kwargs}
-
-    # Set projection
-    if list(bnd):
-        lonmin, lonmax, latmin, latmax = bnd
-    else:
-        lonmin, lonmax = np.min(lon) - buff, np.max(lon) + buff
-        latmin, latmax = np.min(lat) - buff, np.max(lat) + buff
-    projection = ccrs.Mercator(
-        central_longitude=float(np.mean(lon)),
-        min_latitude=float(latmin),
-        max_latitude=float(latmax),
-    )
-    # Define axis
-    if "ax" not in kwargs:
-        if fig is None:
-            fig = plt.figure(figsize=(6, 6))
-        ax = fig.add_subplot(subplot, projection=projection)
-    else:
-        ax = kwargs.pop("ax")
-    ax.set_extent([lonmin, lonmax, latmin, latmax])
-    # Add raster layer
-    if isinstance(layer, str):
-        try:
-            ax.add_wmts("http://map1c.vis.earthdata.nasa.gov/wmts-geo/wmts.cgi", layer)
-        except ValueError:
-            print(f"Layer {layer} is only available in cartopy>=0.16")
-            raise
-    elif isinstance(layer, xr.DataArray):
-        layer = layer.sel(lon=slice(lonmin, lonmax), lat=slice(latmin, latmax))
-        ax.pcolor(
-            layer.lon,
-            layer.lat,
-            np.ma.masked_invalid(layer.values),
-            vmin=None,
-            vmax=None,
-            transform=ccrs.PlateCarree(),
-            cmap=cmap,
-        )
-    # Add depth contour layer
-    if etopo:
-        dset = (
-            xr.open_dataset(ETOPO)
-            .sel(lon=slice(lonmin, lonmax), lat=slice(latmin, latmax))
-            .load()
-        )
-        cobj = ax.contour(
-            dset.lon,
-            dset.lat,
-            -dset.z,
-            levels=levels,
-            colors="0.75",
-            transform=ccrs.PlateCarree(),
-            zorder=4,
-        )
-        cobj.clabel(fmt="%im", fontsize=8)
-    # Add shapefile layers
-    if coastline:
-        ax.add_feature(cfeature.COASTLINE, zorder=3)
-        setattr(cfeature.COASTLINE, "scale", resolution)
-    if land:
-        ax.add_feature(cfeature.LAND, facecolor="0.75", zorder=2)
-        setattr(cfeature.LAND, "scale", resolution)
-    if ocean:
-        ax.add_feature(cfeature.OCEAN, zorder=1)
-        setattr(cfeature.OCEAN, "scale", resolution)
-    # Plot obs
-    ax.plot(lon, lat, transform=ccrs.PlateCarree(), zorder=5, **kwargs)
-    # Configure axis
-    gl = ax.gridlines(draw_labels=True, zorder=6)
-    gl.xlabels_top = False
-    gl.ylabels_right = False
-    gl.n_steps = 4
-    gl.xlocator = mticker.MaxNLocator(nbins=5)
-    gl.ylocator = mticker.MaxNLocator(nbins=5)
-    gl.xformatter = LONGITUDE_FORMATTER
-    gl.yformatter = LATITUDE_FORMATTER
-    return ax
-
 
 class VeriFrameMulti(VeriFrame):
 
@@ -1609,23 +1227,13 @@ class VeriFrameMulti(VeriFrame):
         return "<{}>\n{}".format(self.__class__.__name__, str(self))
 
     def _rename_df_columns(self):
-        """ rename columns because plot dataframes doesn't recognize labels"""
+        """rename columns because plot dataframes doesn't recognize labels"""
         newcols = {self.obsname: self.obslabel}
         for i in range(len(self.verify_cols)):
             newcols[self.verify_cols[i]] = self.modlabels[i]
         self = self.rename(columns=newcols)
         self.obsname = self.obslabel
         self.verify_cols = self.modlabels
-
-    def stats_table(self, **kwargs):
-        frames = []
-        for self.mod_col in self.verify_cols:
-            self.verify_col = self.mod_col
-            tbm = super().stats_table(**kwargs)
-            tbm.columns = [self.mod_col]
-            frames += [tbm]
-        tb = pd.concat(frames, axis=1)
-        return tb
 
     def _multi_plot(self, plot_function, **kwargs):
         method = getattr(super(), plot_function)
@@ -1665,6 +1273,16 @@ class VeriFrameMulti(VeriFrame):
         except:
             pass
         return ax
+
+    def stats_table(self, **kwargs):
+        frames = []
+        for self.mod_col in self.verify_cols:
+            self.verify_col = self.mod_col
+            tbm = super().stats_table(**kwargs)
+            tbm.columns = [self.mod_col]
+            frames += [tbm]
+        tb = pd.concat(frames, axis=1)
+        return tb
 
     def plot_qq(self, ax=None, **kwargs):
         """Quantile-quantile plot of models vs observations.
@@ -1755,7 +1373,7 @@ class VeriFrameMulti(VeriFrame):
             obslabel=self.ref_col,
             mod_cols=self.verify_cols,
             verify_labels=self.verify_labels,
-            rect=int(f"{nr}{nc}6"),
+            rect="%i%i%i" % (nr, nc, 6),
             colors=self.plot_colors,
         )
 
@@ -1794,13 +1412,13 @@ class VeriFrameMulti(VeriFrame):
             self,
             fig=plt.gcf(),
             obslabel=self.ref_col,
-            rect=int(f"{nr}{nc}6"),
+            rect="%i%i%i" % (nr, nc, 6),
             colors=self.plot_colors,
         )
 
         ii = 7
         for self.verify_col in self.verify_cols:
-            ax = plt.subplot(int(f"{nr}{nc}{ii}"))
+            ax = plt.subplot("%i%i%i" % (nr, nc, ii))
             ax.set_aspect("equal")
             self.plot_density_scatter(ax=ax, alpha=0.6, colorbar=False)
             self.add_regression(ax=ax, show_eqn=False, color="k")
@@ -1809,15 +1427,3 @@ class VeriFrameMulti(VeriFrame):
 
         # plt.tight_layout()
         return
-
-
-if __name__ == "__main__":
-
-    # from onverify.veriframe import VeriFrame
-    pkl = "/source/paper-swan-st6/data/altverify/nweuro/new/weuro_st6_03_debias097/colocs/201601.pkl"
-
-    # df = pd.read_pickle(pkl)
-    # vf = VeriFrame(df, ref_col="obs", verify_col="model", var="hs")
-    # vf = VeriFrame.from_gbq(dset="wave.weuro_st6_03_debia097")
-    vf = VeriFrame.from_file(filename=pkl, kind="pickle")
-    dset = vf.gridstats(boxsize=0.5)

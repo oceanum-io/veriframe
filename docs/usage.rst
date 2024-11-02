@@ -2,6 +2,6 @@
 Usage
 =====
 
-To use onverify in a project::
+To use veriframe in a project::
 
-    import onverify
+    import veriframe

@@ -1,13 +1,11 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8
+
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
 import os, webbrowser, sys
 
-try:
-	from urllib import pathname2url
-except:
-	from urllib.request import pathname2url
+from urllib.request import pathname2url
 
 webbrowser.open("file://" + pathname2url(os.path.abspath(sys.argv[1])))
 endef
@@ -50,25 +48,28 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: ## check style with flake8
-	flake8 onverify tests
+lint/flake8: ## check style with flake8
+	flake8 veriframe tests
+
+
+lint: lint/flake8 ## check style
 
 test: ## run tests quickly with the default Python
-	py.test
+	pytest
 
 test-all: ## run tests on every Python version with tox
 	tox
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source onverify -m pytest
+	coverage run --source veriframe -m pytest
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/onverify.rst
+	rm -f docs/veriframe.rst
 	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ onverify
+	sphinx-apidoc -o docs/ veriframe
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html

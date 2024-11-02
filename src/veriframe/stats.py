@@ -112,7 +112,7 @@ def r(x, y):
     """Pearson Correlation Coeficient.
 
     :math:`R = ...`
- 
+
     Args:
         x (array): x values, usually observations.
         y (array): y values, usually model.

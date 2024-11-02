@@ -1,8 +1,0 @@
-cmocean
-fastavro
-git+ssh://git@gitlab.com/oceanum/oncore # This will need to be tagged at some point
-git+ssh://git@gitlab.com/oceanum/ontake # This will need to be tagged at some point
-google-cloud-bigquery-storage
-pyarrow
-pyproj
-six

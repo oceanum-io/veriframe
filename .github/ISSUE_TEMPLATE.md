@@ -1,4 +1,4 @@
-* onverify version:
+* veriframe version:
 * Python version:
 * Operating System:
 

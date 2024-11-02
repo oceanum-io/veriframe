@@ -1,4 +1,4 @@
-Welcome to onverify's documentation!
+Welcome to veriframe's documentation!
 ======================================
 
 .. toctree::

@@ -40,12 +40,13 @@ vars:
     hs:    {long_name: significant wave height, units: $m$}
     tp:    {long_name: peak wave period, units: $s$}
     dpm:   {long_name: peak wave direction, units: $^\circ$}
+    hstp:  {long_name: hs_x_tp, units: '$ms$'}
+    hs2tp:  {long_name: hs2_x_tp, units: '$m^2s$'}
 
     # meteo ---------------------------------------------------------------------------------------------------------------
     wsp:    {long_name: wind speed, units: "$ms^{-1}$"}
     wdr:    {long_name: wind direction, units: $^\circ$}
     power:  {long_name: wind power, units: "$kW$"}
-    radiation:  {long_name: solar radiation, units: "$Wm^{-2}$"}
 
 plotspecs:
     # scalar vars ---------------------------------------------------------------------------------------------------------
