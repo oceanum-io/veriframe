@@ -282,10 +282,23 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         density /= density.max()
         return x[0:-1], np.ma.masked_less(density, 0)
 
-    def _gaussian_kde(self):
+    def _gaussian_kde(self, sample_size=None):
         """Kernel Density Estimation for density scatter plot."""
-        xy = np.vstack([self[self.ref_col], self[self.verify_col]])
-        z = gaussian_kde(xy)(xy)
+        # Optionally subsample for KDE calculation
+        if sample_size is not None and len(self) > sample_size:
+            df = self.sample(n=sample_size, random_state=42)
+        else:
+            df = self
+
+        # Calculate KDE using sample points
+        xy = np.vstack([df[self.ref_col], df[self.verify_col]])
+        kde = gaussian_kde(xy)
+
+        # Apply KDE to all points
+        xy_all = np.vstack([self[self.ref_col], self[self.verify_col]])
+        z = kde(xy_all)
+
+        # Sort by density
         idx = z.argsort()
         return self[self.ref_col][idx], self[self.verify_col][idx], z[idx]
 
@@ -626,11 +639,12 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         return ax
 
     def plot_density_scatter(
-        self, showeq=True, colorbar=True, xlim=None, ylim=None, **kwargs
+        self, sample_size=None, showeq=True, colorbar=True, xlim=None, ylim=None, **kwargs
     ):
         """Scatter density plot of model vs observations.
 
         Args:
+            - ``sample_size`` (int): number of points to use for KDE calculation.
             - ``showeq`` (bool): show equality line if True.
             - ``colorbar`` (bool): show colorbar if True.
             - ``xlim`` (tuple): x-limits for axis, if None inferred from data.
@@ -651,7 +665,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         if not ax:
             plt.figure(figsize=(6, 6))
             ax = plt.subplot(111)
-        xs, ys, zs = self._gaussian_kde()
+        xs, ys, zs = self._gaussian_kde(sample_size=sample_size)
         if np.any(~np.isnan(zs)):
             pobj = ax.scatter(xs, ys, c=zs, **kwargs)
         else:
