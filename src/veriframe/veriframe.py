@@ -204,8 +204,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         "verify_col",
         "var",
         "circular",
-        "lat",
-        "lon",
         "ref_label",
         "verify_label",
     ]
@@ -238,13 +236,11 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         if self.circular:
             setattr(self, "ref_col", self.ref_col % 360)
             setattr(self, "verify_col", self.verify_col % 360)
-        # Setting lonlat attrs from dataframe if a string is provided
-        if lat in self.columns and lon in self.columns:
-            self.lat = self[lat]
-            self.lon = self[lon]
-        else:
-            self.lat = lat if lat is not None else None
-            self.lon = lon if lon is not None else None
+        # Setting lat/lon cols if a string is provided
+        if isinstance(lat, str) and lat != "lat":
+            self["lat"] = self[lat]
+        if isinstance(lon, str) and lon != "lon":
+            self["lon"] = self[lon]
 
     def __repr__(self):
         return f"<{self.__class__.__name__}>\n{super().__repr__()}"
@@ -1052,13 +1048,13 @@ class VeriFrame(pd.DataFrame, AxisVerify):
                 stream.write(table)
         return table
 
-    def gridstats(self, boxsize, latedges=None, lonedges=None):
+    def gridstats(self, boxsize, lats=None, lons=None):
         """Calculate the stats for each grid point of given box size (lat,lon).
 
         Args:
             boxsize (float): Length of grid cells.
-            latedges (array): Custom latitude array for grid.
-            lonedges (array): Custom longitude array for grid.
+            lats (array): Custom latitude array for grid.
+            lons (array): Custom longitude array for grid.
 
         Returns:
             Xarray dataset with gridded stats.
@@ -1067,40 +1063,32 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         if not ("lat" in self.columns and "lon" in self.columns):
             raise ValueError("gridstats requires lon, lat columns in VeriFrame.")
 
-        logger.info("    Calculating gridded statistics...")
+        logger.info("Calculating gridded statistics...")
 
-        df = self[[self.ref_col, self.verify_col]].dropna()
+        df = self[[self.ref_col, self.verify_col, "lat", "lon"]].dropna()
         obs = df[self.ref_col]
         model = df[self.verify_col]
 
-        if latedges is None:
-            latmin = self.lat.min() + (abs(self.lat.min()) % boxsize)
-            latmax = self.lat.max() - (abs(self.lat.min()) % boxsize)
-            latedges = np.arange(latmin, latmax + boxsize, boxsize)
+        if lats is None:
+            latmin = df.lat.min() + (abs(df.lat.min()) % boxsize)
+            latmax = df.lat.max() - (abs(df.lat.min()) % boxsize)
+            lats = np.arange(latmin, latmax + boxsize, boxsize)
 
-        if lonedges is None:
-            lonmin = self.lon.min() + (abs(self.lon.min()) % boxsize)
-            lonmax = self.lon.max() - (abs(self.lon.min()) % boxsize)
-            lonedges = np.arange(lonmin, lonmax + boxsize, boxsize)
+        if lons is None:
+            lonmin = df.lon.min() + (abs(df.lon.min()) % boxsize)
+            lonmax = df.lon.max() - (abs(df.lon.min()) % boxsize)
+            lons = np.arange(lonmin, lonmax + boxsize, boxsize)
 
         # Calculating gridded sums
         diff = model - obs
         diff2 = model**2 - obs**2
         msdall = diff**2
 
-        n = np.histogram2d(self.lat, self.lon, bins=(latedges, lonedges))[0]
-        bias_sum = np.histogram2d(
-            self.lat, self.lon, weights=diff, bins=(latedges, lonedges)
-        )[0]
-        obs_sum = np.histogram2d(
-            self.lat, self.lon, weights=obs, bins=(latedges, lonedges)
-        )[0]
-        mod_sum = np.histogram2d(
-            self.lat, self.lon, weights=model, bins=(latedges, lonedges)
-        )[0]
-        msd_sum = np.histogram2d(
-            self.lat, self.lon, weights=msdall, bins=(latedges, lonedges)
-        )[0]
+        n = np.histogram2d(df.lat, df.lon, bins=(lats, lons))[0]
+        bias_sum = np.histogram2d(df.lat, df.lon, weights=diff, bins=(lats, lons))[0]
+        obs_sum = np.histogram2d(df.lat, df.lon, weights=obs, bins=(lats, lons))[0]
+        mod_sum = np.histogram2d(df.lat, df.lon, weights=model, bins=(lats, lons))[0]
+        msd_sum = np.histogram2d(df.lat, df.lon, weights=msdall, bins=(lats, lons))[0]
 
         # Masking
         bias_sum = np.ma.masked_equal(bias_sum, 0)
@@ -1112,17 +1100,17 @@ class VeriFrame(pd.DataFrame, AxisVerify):
 
         # Assert coordinates are matching
         nlat, nlon = n.shape
-        if latedges.size > nlat:
-            latedges = latedges[:-1]
-        if lonedges.size > nlon:
-            lonedges = lonedges[:-1]
+        if lats.size > nlat:
+            lats = lats[:-1]
+        if lons.size > nlon:
+            lons = lons[:-1]
 
         # Testing this as coordinates look shifted
-        latedges += (latedges[1] - latedges[0]) / 2
-        lonedges += (lonedges[1] - lonedges[0]) / 2
+        lats += (lats[1] - lats[0]) / 2
+        lons += (lons[1] - lons[0]) / 2
 
         # Assign gridded dataset
-        dset = xr.Dataset(coords={"lat": latedges, "lon": lonedges})
+        dset = xr.Dataset(coords={"lat": lats, "lon": lons})
 
         dset["nobs"] = xr.DataArray(n, coords=dset.coords)
         dset["obsmean"] = xr.DataArray(obs_sum / n, coords=dset.coords)
