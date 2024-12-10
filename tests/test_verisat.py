@@ -1,10 +1,15 @@
+import os
 import pytest
 from shapely.geometry import box
 
 from rompy.core.source import SourceFile
 from rompy.core.time import TimeRange
 
-from veriframe.satellite import VeriSat
+from veriframe.veriframe import VeriFrame
+from veriframe.verisat import VeriSat
+
+
+DATAMESH_TOKEN = os.getenv("DATAMESH_TOKEN")
 
 
 @pytest.fixture(scope="module")
@@ -25,8 +30,8 @@ def times():
 
 
 def test_verisat_area(source):
-    v1 = VeriSat(area=box(0, 0, 1, 1), model_souce=source)
-    v2 = VeriSat(area=(0, 0, 1, 1), model_souce=source)
+    v1 = VeriSat(area=box(0, 0, 1, 1), model_source=source)
+    v2 = VeriSat(area=(0, 0, 1, 1), model_source=source)
     assert v1 == v2
 
 
@@ -40,13 +45,12 @@ def test_load_model(source, times):
     assert (times.start >= t0) & (times.end <= t1)
 
 
-def test_run(source, times):
+@pytest.mark.skipif(not DATAMESH_TOKEN, reason="Datamesh token not in the environment")
+def test_get_colocs(source, times):
     v = VeriSat(
         area=(9, 53.8, 30.3, 66.0),
         model_source=source,
         model_var="hs",
     )
-    data = v.run(times)
-    import ipdb; ipdb.set_trace()
-    # assert v.model_type == "file"
-    # assert v.uri == "tests/data/verisat.nc"
+    vf = v.get_colocs(times)
+    assert isinstance(vf, VeriFrame)

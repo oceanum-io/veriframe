@@ -41,7 +41,7 @@ class VeriSat(BaseModel):
         default=None,
         description="Token for datamesh connector",
     )
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
     @field_validator("area")
     @classmethod
@@ -67,12 +67,12 @@ class VeriSat(BaseModel):
             datasource="imos_wave_wind",
             variables=["swh_ku_cal", "swh_ku_quality_control", "platform"],
             timefilter={"type": "range", "times": [time.start, time.end]},
-            geofilter={"type": "bbox", "geom": list(self.area.bounds)}
+            geofilter={"type": "bbox", "geom": list(self.area.bounds)},
         )
         df = df.loc[df.swh_ku_quality_control == self.qc_level]
         return df.set_index("time").sort_index()
 
-    def _get_colocs(self, time: TimeRange) -> pd.DataFrame:
+    def get_colocs(self, time: TimeRange) -> VeriFrame:
         """Get the colocations dataframe."""
         df_sat = self._load_sat(time)
         dset_model = self._load_model(time)
@@ -88,14 +88,12 @@ class VeriSat(BaseModel):
                 df_sat.swh_ku_cal,
                 df_model.hs,
             ],
-        axis=1)
+            axis=1,
+        )
         df.columns = ["lon", "lat", "platform", "satellite", "model"]
-        return df
+        return VeriFrame(df, ref_col="satellite", verify_col="model")
 
     def run(self, time: TimeRange) -> VeriFrame:
         """Run the verification."""
-        df = self._get_colocs(time)
-        vf = VeriFrame(df, ref_col="satellite", verify_col="model")
-        ds = vf.gridstats(boxsize=0.5)
-        import ipdb; ipdb.set_trace()
-        return df
+        vf = self.get_colocs(time)
+        return vf
