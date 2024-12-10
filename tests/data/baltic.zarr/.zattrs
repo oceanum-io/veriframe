@@ -1,0 +1,10 @@
+{
+    "Conventions": "CF-1.5",
+    "Directional_convention": "nautical",
+    "History": "Created with agioncmd version 1.5",
+    "Institution": "Oceanum Ltd",
+    "cycle": "20161001T00",
+    "model": "41.31A",
+    "project": "West Europe",
+    "run": "dutc"
+}

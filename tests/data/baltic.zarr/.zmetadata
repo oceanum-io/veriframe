@@ -1,0 +1,183 @@
+{
+    "metadata": {
+        ".zattrs": {
+            "Conventions": "CF-1.5",
+            "Directional_convention": "nautical",
+            "History": "Created with agioncmd version 1.5",
+            "Institution": "Oceanum Ltd",
+            "cycle": "20161001T00",
+            "model": "41.31A",
+            "project": "West Europe",
+            "run": "dutc"
+        },
+        ".zgroup": {
+            "zarr_format": 2
+        },
+        "depth/.zarray": {
+            "chunks": [
+                249,
+                25,
+                32
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": 12012.0302734375,
+            "filters": [
+                {
+                    "astype": "<i2",
+                    "dtype": "<f4",
+                    "id": "fixedscaleoffset",
+                    "offset": 5991.106874799726,
+                    "scale": 5.4421887339593065
+                }
+            ],
+            "order": "C",
+            "shape": [
+                249,
+                25,
+                43
+            ],
+            "zarr_format": 2
+        },
+        "depth/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "long_name": "depth below sea surface",
+            "standard_name": "sea_floor_depth_below_sea_surface",
+            "units": "m",
+            "valid_max": 12000.0,
+            "valid_min": -30.0
+        },
+        "hs/.zarray": {
+            "chunks": [
+                249,
+                25,
+                32
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": 50.04999923706055,
+            "filters": [
+                {
+                    "astype": "<i2",
+                    "dtype": "<f4",
+                    "id": "fixedscaleoffset",
+                    "offset": 25.025381857022964,
+                    "scale": 1309.3906093906094
+                }
+            ],
+            "order": "C",
+            "shape": [
+                249,
+                25,
+                43
+            ],
+            "zarr_format": 2
+        },
+        "hs/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "long_name": "significant height of wind and swell waves",
+            "standard_name": "sea_surface_wave_significant_height",
+            "units": "m",
+            "valid_max": 50.0,
+            "valid_min": 0.0
+        },
+        "latitude/.zarray": {
+            "chunks": [
+                123
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                25
+            ],
+            "zarr_format": 2
+        },
+        "latitude/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "latitude"
+            ]
+        },
+        "longitude/.zarray": {
+            "chunks": [
+                214
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                43
+            ],
+            "zarr_format": 2
+        },
+        "longitude/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "longitude"
+            ]
+        },
+        "time/.zarray": {
+            "chunks": [
+                10000000
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f8",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                249
+            ],
+            "zarr_format": 2
+        },
+        "time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "calendar": "proleptic_gregorian",
+            "units": "hours since 2016-01-01"
+        }
+    },
+    "zarr_consolidated_format": 1
+}
