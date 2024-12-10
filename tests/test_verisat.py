@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import pytest
 from shapely.geometry import box
 
@@ -9,13 +10,14 @@ from veriframe.veriframe import VeriFrame
 from veriframe.verisat import VeriSat
 
 
+HERE = Path(__file__).parent
 DATAMESH_TOKEN = os.getenv("DATAMESH_TOKEN")
 
 
 @pytest.fixture(scope="module")
 def source():
     return SourceFile(
-        uri="/source/veriframe/tests/data/baltic.zarr",
+        uri=HERE / "data/baltic.zarr",
         kwargs=dict(engine="zarr"),
     )
 
