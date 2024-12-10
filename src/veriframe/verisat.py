@@ -6,10 +6,9 @@ from shapely.geometry import box, Polygon
 from oceanum.datamesh import Connector
 
 from typing import Union, Optional, Literal
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from veriframe.veriframe import VeriFrame
-from veriframe.stats import bias, rmsd, si
 
 
 logger = logging.getLogger(__name__)
@@ -92,8 +91,3 @@ class VeriSat(BaseModel):
         )
         df.columns = ["lon", "lat", "platform", "satellite", "model"]
         return VeriFrame(df, ref_col="satellite", verify_col="model")
-
-    def run(self, time: TimeRange) -> VeriFrame:
-        """Run the verification."""
-        vf = self.get_colocs(time)
-        return vf

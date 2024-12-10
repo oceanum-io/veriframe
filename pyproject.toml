@@ -20,6 +20,7 @@ dependencies = [
   "cartopy",
   "matplotlib",
   "pyyaml",
+  "rompy @ git+https://github.com/rom-py/rompy.git@main",
   "scipy",
   "tabulate",
   "typer",
