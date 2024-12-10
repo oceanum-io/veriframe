@@ -18,6 +18,7 @@ classifiers = [
 license = {text = "Not open source"}
 dependencies = [
   "cartopy",
+  "geopandas",
   "matplotlib",
   "pyyaml",
   "rompy @ git+https://github.com/rom-py/rompy.git@main",

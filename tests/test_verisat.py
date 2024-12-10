@@ -53,6 +53,7 @@ def test_get_colocs(source, times):
         area=(9, 53.8, 30.3, 66.0),
         model_source=source,
         model_var="hs",
+        offshore_buffer=1.0,
     )
     vf = v.get_colocs(times)
     assert isinstance(vf, VeriFrame)
