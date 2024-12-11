@@ -368,6 +368,10 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         coef, __ = linear_regression(self[self.ref_col], self[self.verify_col], order=1)
         return coef
 
+    def r(self):
+        """Returns the correlation coefficient."""
+        return np.corrcoef(self[self.ref_col], self[self.verify_col])[0, 1]
+
     def n(self, *kwargs):
         """The number of collocated samples."""
         return self.nsamp
