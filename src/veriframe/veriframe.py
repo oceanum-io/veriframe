@@ -85,15 +85,21 @@ class AxisVerify:
                 min_y = min(min_y, np.min(y_data))
                 max_y = max(max_y, np.max(y_data))
             elif isinstance(child, QuadContourSet):  # For contour and contourf
-                for collection in child.collections:
-                    for path in collection.get_paths():
-                        vertices = path.vertices
-                        x_data = vertices[:, 0]
-                        y_data = vertices[:, 1]
+                try:
+                    paths = child.collections.get_paths()
+                except AttributeError:
+                    paths = child.get_paths()
+                for path in paths:
+                    vertices = path.vertices
+                    x_data = vertices[:, 0]
+                    y_data = vertices[:, 1]
+                    try:
                         min_x = min(min_x, np.min(x_data))
                         max_x = max(max_x, np.max(x_data))
                         min_y = min(min_y, np.min(y_data))
                         max_y = max(max_y, np.max(y_data))
+                    except ValueError:
+                        continue
             else:
                 continue
 
