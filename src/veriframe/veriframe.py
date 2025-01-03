@@ -534,7 +534,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
         theta,
         radius,
         colorbar=False,
-        cbar_pad=0.1,
+        cbar_kwargs=dict(pad=0.1, shrink=1.0),
         oceanographic=True,
         show_label=False,
         **kwargs,
@@ -593,7 +593,9 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             ax.set_ylabel("")
 
         if colorbar and mappable:
-            plt.colorbar(mappable, label=kwargs["c"].title(), pad=0.1)
+            if "label" not in cbar_kwargs:
+                cbar_kwargs["label"] = kwargs["c"].title()
+            plt.colorbar(mappable, **cbar_kwargs)
         plt.show()
 
         return ax
