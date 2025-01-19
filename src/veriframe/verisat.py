@@ -34,6 +34,10 @@ class VeriSat(BaseModel):
         default="hs",
         description="Model variable to verify",
     )
+    sat_var: Literal["swh_ku_cal", "wspd_cal"] = Field(
+        default="swh_ku_cal",
+        description="Satellite variable to verify",
+    )
     qc_level: Literal[1, 2] = Field(
         default=1,
         description="Quality control level for satellite data",
@@ -87,18 +91,22 @@ class VeriSat(BaseModel):
     def _load_model(self, time: TimeRange) -> xr.Dataset:
         """Load the model data for the given time and grid."""
         logger.info(f"Loading the model data for {time.start} to {time.end}")
-        ds = self.model_source.open()
+        ds = self.model_source.open()[[self.model_var]]
         return ds.sel(time=slice(time.start, time.end))
 
     def _load_sat(self, time: TimeRange) -> pd.DataFrame:
         """Load the satellite data for the given time and grid."""
         logger.info(f"Querying satellite data for {time.start} to {time.end}")
+        x0, y0, x1, y1 = list(self.area.bounds)
         df = self.datamesh.query(
             datasource="imos_wave_wind",
-            variables=["swh_ku_cal", "swh_ku_quality_control", "platform"],
+            variables=[self.sat_var, "swh_ku_quality_control", "platform"],
             timefilter={"type": "range", "times": [time.start, time.end]},
-            geofilter={"type": "bbox", "geom": list(self.area.bounds)},
+            geofilter={"type": "bbox", "geom": [x0%360, y0, x1%360, y1]},
         )
+        # Ensure the longitude is in the range -180, 180
+        df.longitude[df.longitude > 180] -= 360
+        # Keep only the good data
         df = df.loc[df.swh_ku_quality_control == self.qc_level]
         return df.set_index("time").sort_index()
 
@@ -126,8 +134,8 @@ class VeriSat(BaseModel):
                 df_sat.longitude,
                 df_sat.latitude,
                 df_sat.platform,
-                df_sat.swh_ku_cal,
-                df_model.hs,
+                df_sat[self.sat_var],
+                df_model[self.model_var],
             ],
             axis=1,
         )
