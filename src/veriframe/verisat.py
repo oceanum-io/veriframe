@@ -34,6 +34,10 @@ class VeriSat(BaseModel):
         default="hs",
         description="Model variable to verify",
     )
+    extra_model_vars: list[str] = Field(
+        default=[],
+        description="Extra model variables to load",
+    )
     sat_var: Literal["swh_ku_cal", "wspd_cal"] = Field(
         default="swh_ku_cal",
         description="Satellite variable to verify",
@@ -63,6 +67,12 @@ class VeriSat(BaseModel):
             return box(*v)
         return v
 
+    @property
+    def var(self):
+        if self.model_var == "wspd":
+            return "spd"
+        return self.model_var
+
     @cached_property
     def datamesh(self) -> Connector:
         return Connector(token=self.datamesh_token)
@@ -91,7 +101,8 @@ class VeriSat(BaseModel):
     def _load_model(self, time: TimeRange) -> xr.Dataset:
         """Load the model data for the given time and grid."""
         logger.info(f"Loading the model data for {time.start} to {time.end}")
-        ds = self.model_source.open()[[self.model_var]]
+        model_vars = [self.model_var] + self.extra_model_vars
+        ds = self.model_source.open()[model_vars]
         return ds.sel(time=slice(time.start, time.end))
 
     def _load_sat(self, time: TimeRange) -> pd.DataFrame:
@@ -140,5 +151,7 @@ class VeriSat(BaseModel):
             axis=1,
         )
         df.columns = ["lon", "lat", "platform", "satellite", "model"]
+        for extra_model_var in self.extra_model_vars:
+            df[extra_model_var] = df_model[extra_model_var]
         df = self.set_offshore_mask(df)
-        return VeriFrame(df, ref_col="satellite", verify_col="model")
+        return VeriFrame(df, ref_col="satellite", verify_col="model", var=self.var)
