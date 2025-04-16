@@ -21,7 +21,7 @@ dependencies = [
   "geopandas",
   "matplotlib",
   "pyyaml",
-  "rompy @ git+https://github.com/rom-py/rompy.git@main",
+  "rompy",
   "scipy",
   "tabulate",
   "typer",
