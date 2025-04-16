@@ -596,7 +596,6 @@ class VeriFrame(pd.DataFrame, AxisVerify):
             if "label" not in cbar_kwargs:
                 cbar_kwargs["label"] = kwargs["c"].title()
             plt.colorbar(mappable, **cbar_kwargs)
-        plt.show()
 
         return ax
 
