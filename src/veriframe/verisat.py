@@ -50,6 +50,10 @@ class VeriSat(BaseModel):
         default=None,
         description="Token for datamesh connector",
     )
+    datamesh_service: str = Field(
+        default="https://datamesh.oceanum.io",
+        description="Service for datamesh connector",
+    )
     offshore_buffer: float = Field(
         default=0.5,
         description="Buffer distance for offshore mask in degrees",
@@ -75,7 +79,7 @@ class VeriSat(BaseModel):
 
     @cached_property
     def datamesh(self) -> Connector:
-        return Connector(token=self.datamesh_token)
+        return Connector(token=self.datamesh_token, service=self.datamesh_service)
 
     # @cached_property
     # def landmask(self) -> gpd.GeoDataFrame:
@@ -109,12 +113,16 @@ class VeriSat(BaseModel):
         """Load the satellite data for the given time and grid."""
         logger.info(f"Querying satellite data for {time.start} to {time.end}")
         x0, y0, x1, y1 = list(self.area.bounds)
-        df = self.datamesh.query(
+        query = dict(
             datasource="imos_wave_wind",
             variables=[self.sat_var, "swh_ku_quality_control", "platform"],
             timefilter={"type": "range", "times": [time.start, time.end]},
             geofilter={"type": "bbox", "geom": [x0%360, y0, x1%360, y1]},
         )
+        logger.info(query)
+        df = self.datamesh.query(query)
+        if isinstance(df, xr.Dataset):
+            df = df.to_pandas()
         # Ensure the longitude is in the range -180, 180
         df.longitude[df.longitude > 180] -= 360
         # Keep only the good data
