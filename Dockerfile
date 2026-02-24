@@ -2,8 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for cartopy and geopandas
+# Install system dependencies for cartopy, geopandas, and build tools for wavespectra C extension
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     libgeos-dev \
     libproj-dev \
     proj-data \
