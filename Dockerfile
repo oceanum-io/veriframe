@@ -23,4 +23,4 @@ COPY . .
 RUN pip install --no-cache-dir .
 
 # Default command
-CMD ["python"]
+CMD ["/bin/bash"]
