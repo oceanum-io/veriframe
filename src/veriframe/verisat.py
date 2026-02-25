@@ -102,12 +102,14 @@ class VeriSat(BaseModel):
         x0, y0, x1, y1 = self.area.bounds
         return gdf.cx[x0:x1, y0:y1].dissolve()
 
-    def _load_model(self, time: TimeRange) -> xr.Dataset:
+    def _load_model(self, time: TimeRange = None) -> xr.Dataset:
         """Load the model data for the given time and grid."""
-        logger.info(f"Loading the model data for {time.start} to {time.end}")
+        tstart = time.start if time is not None else None
+        tend = time.end if time is not None else None
+        logger.info(f"Loading the model data for {tstart} to {tend}")
         model_vars = [self.model_var] + self.extra_model_vars
         ds = self.model_source.open()[model_vars]
-        return ds.sel(time=slice(time.start, time.end))
+        return ds.sel(time=slice(tstart, tend))
 
     def _load_sat(self, time: TimeRange) -> pd.DataFrame:
         """Load the satellite data for the given time and grid."""
@@ -140,10 +142,13 @@ class VeriSat(BaseModel):
         dfout["offshore_distance"] = self.offshore_buffer
         return dfout
 
-    def get_colocs(self, time: TimeRange) -> VeriFrame:
+    def get_colocs(self, time: TimeRange = None) -> VeriFrame:
         """Get the colocations dataframe."""
-        df_sat = self._load_sat(time)
         dset_model = self._load_model(time)
+        if time is None:
+            tstart, tend = dset_model.time.to_index().to_pydatetime()[[0, -1]]
+            time = TimeRange(start=tstart, end=tend)
+        df_sat = self._load_sat(time)
         x = xr.DataArray(df_sat.longitude.values, dims=("site",))
         y = xr.DataArray(df_sat.latitude.values, dims=("site",))
         t = xr.DataArray(df_sat.index, dims=("site",))
