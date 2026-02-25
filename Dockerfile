@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --upgrade pip
 COPY . .
 
 # Install veriframe
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[extras]'
 
 # Default command
 CMD ["/bin/bash"]

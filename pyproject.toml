@@ -30,6 +30,9 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+extras = [
+    "gcsfs",
+]
 dev = [
     "coverage",
     "mypy",
