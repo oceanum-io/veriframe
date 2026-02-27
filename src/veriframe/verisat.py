@@ -123,6 +123,9 @@ class VeriSat(BaseModel):
         )
         logger.info(query)
         df = self.datamesh.query(query)
+        if df is None:
+            logger.warning(f"No data found for query: {query}")
+            return df
         if isinstance(df, xr.Dataset):
             df = df.to_pandas()
         # Ensure the longitude is in the range -180, 180
@@ -149,6 +152,9 @@ class VeriSat(BaseModel):
             tstart, tend = dset_model.time.to_index().to_pydatetime()[[0, -1]]
             time = TimeRange(start=tstart, end=tend)
         df_sat = self._load_sat(time)
+        if df_sat is None:
+            df = pd.DataFrame({"lon": [], "lat": [], "platform": [], "satellite": [], "model": []})
+            return VeriFrame(df, ref_col="satellite", verify_col="model", var=self.var)
         x = xr.DataArray(df_sat.longitude.values, dims=("site",))
         y = xr.DataArray(df_sat.latitude.values, dims=("site",))
         t = xr.DataArray(df_sat.index, dims=("site",))
