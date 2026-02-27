@@ -177,5 +177,7 @@ class VeriSat(BaseModel):
         df.columns = ["lon", "lat", "platform", "satellite", "model"]
         for extra_model_var in self.extra_model_vars:
             df[extra_model_var] = df_model[extra_model_var]
+        for extra_sat_var in self.extra_sat_vars:
+            df[extra_sat_var] = df_sat[extra_sat_var]
         df = self.set_offshore_mask(df)
         return VeriFrame(df, ref_col="satellite", verify_col="model", var=self.var)
