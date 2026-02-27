@@ -126,7 +126,7 @@ class VeriSat(BaseModel):
         if isinstance(df, xr.Dataset):
             df = df.to_pandas()
         # Ensure the longitude is in the range -180, 180
-        df.longitude[df.longitude > 180] -= 360
+        df.loc[df.longitude > 180, 'longitude'] -= 360
         # Keep only the good data
         df = df.loc[df.swh_ku_quality_control == self.qc_level]
         return df.set_index("time").sort_index()

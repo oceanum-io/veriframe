@@ -302,7 +302,7 @@ class VeriFrame(pd.DataFrame, AxisVerify):
 
         # Sort by density
         idx = z.argsort()
-        return self[self.ref_col][idx], self[self.verify_col][idx], z[idx]
+        return self[self.ref_col].iloc[idx], self[self.verify_col].iloc[idx], z[idx]
 
     def _get_cdf(self, col):
         """Return arrays for a CDF plot."""
