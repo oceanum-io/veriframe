@@ -42,6 +42,10 @@ class VeriSat(BaseModel):
         default="swh_ku_cal",
         description="Satellite variable to verify",
     )
+    extra_sat_vars: list[str] = Field(
+        default=[],
+        description="Extra satellite variables to load",
+    )
     qc_level: Literal[1, 2] = Field(
         default=1,
         description="Quality control level for satellite data",
@@ -115,9 +119,10 @@ class VeriSat(BaseModel):
         """Load the satellite data for the given time and grid."""
         logger.info(f"Querying satellite data for {time.start} to {time.end}")
         x0, y0, x1, y1 = list(self.area.bounds)
+        variables = [self.sat_var] + self.extra_sat_vars + ["swh_ku_quality_control", "platform"]
         query = dict(
             datasource="imos_wave_wind",
-            variables=[self.sat_var, "swh_ku_quality_control", "platform"],
+            variables=list(set(variables)),
             timefilter={"type": "range", "times": [time.start, time.end]},
             geofilter={"type": "bbox", "geom": [x0%360, y0, x1%360, y1]},
         )
