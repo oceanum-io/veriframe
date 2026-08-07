@@ -402,6 +402,18 @@ class VeriFrame(pd.DataFrame, AxisVerify):
 
     si.__doc__ = set_docstring("si")
 
+    def usi(self, **kwargs):
+        return stats.usi(x=self[self.ref_col], y=self[self.verify_col])
+
+    usi.__doc__ = set_docstring("usi")
+
+    def mse_decomposition(self, **kwargs):
+        return stats.mse_decomposition(
+            x=self[self.ref_col], y=self[self.verify_col]
+        )
+
+    mse_decomposition.__doc__ = set_docstring("mse_decomposition")
+
     def mrad(self, **kwargs):
         return stats.mrad(x=self[self.ref_col], y=self[self.verify_col])
 

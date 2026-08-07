@@ -114,6 +114,7 @@ _stats_table:
     - bias
     - rmsd
     - si
+    - usi
     - mad
     - mrad
     - nbias

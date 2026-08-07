@@ -8,6 +8,7 @@ Welcome to veriframe's documentation!
    readme
    installation
    usage
+   statistics
    modules
    contributing
    authors
