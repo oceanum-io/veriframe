@@ -134,6 +134,27 @@ def ks(x, y):
     return ks_2samp(x, y)[0]
 
 
+def _regression_residual_var(x, y):
+    """Population variance of the residual of regressing x on y.
+
+    The residual of the least-squares fit :math:`x \\approx a y + b` is what
+    is left of the observations once the model has been optimally rescaled and
+    shifted. Its variance equals :math:`\\sigma_A^2 (1 - R^2)`, but it is
+    computed from the residuals directly: evaluating ``1 - R**2`` when R is 1
+    minus rounding noise loses every significant digit, whereas the residuals
+    of a perfectly affine model are themselves at rounding level.
+
+    Returns NaN when y is constant, since the fit is then undefined (as is R).
+    """
+    xc = x - np.mean(x)
+    yc = y - np.mean(y)
+    syy = np.dot(yc, yc)
+    if syy == 0.0:
+        return np.nan
+    resid = xc - (np.dot(xc, yc) / syy) * yc
+    return float(np.mean(resid**2))
+
+
 def usi(x, y):
     """Unexplained Scatter Index USI.
 
@@ -150,27 +171,32 @@ def usi(x, y):
 
     Why this in addition to :func:`si`:
         :func:`si` removes the mean offset but **not** an amplitude error. Its
-        square is the error variance, which decomposes exactly as
+        square is the error variance, which splits exactly (Murphy, 1988) as
 
         .. math::
-            \\mathrm{var}(y-x) = (\\sigma_B - \\sigma_A)^2
-                               + 2\\,\\sigma_A\\sigma_B\\,(1 - R)
+            \\mathrm{var}(y-x) = (\\sigma_B - R\\,\\sigma_A)^2
+                               + \\sigma_A^2\\,(1 - R^2)
 
-        The first term is a systematic mismatch in variability: a model that
-        reproduces every event in phase but swings 25% too hard scores a large
-        SI with no random error at all. The second is the genuinely
-        unexplained part. USI isolates that second component.
+        The first term is a systematic mismatch in variability, the amplitude
+        error left after the model's correlation is taken into account: a
+        model that reproduces every event in phase but swings 25% too hard
+        scores a large SI with no random error at all. The second is the
+        genuinely unexplained part, and :math:`USI^2\\,\\overline A^2` is
+        exactly that term. It follows that :math:`USI \\le SI` always, with
+        equality when :math:`\\sigma_B = R\\,\\sigma_A`.
 
         USI is invariant under any affine transform of the model,
         :math:`y \\rightarrow \\alpha y + \\beta`, so neither a bias nor a
         gain error can move it. Comparing SI and USI therefore separates
         "the model is noisy" from "the model is mis-scaled", which the two
-        indices conflate when reported alone.
+        indices conflate when reported alone. :func:`mse_decomposition`
+        returns the terms themselves.
 
     Note:
         Linear variables only. It is built on the Pearson correlation, which
         is not meaningful for directions -- there is deliberately no
-        ``circular`` argument.
+        ``circular`` argument. Returns NaN for a constant model, where the
+        correlation is undefined.
 
     References:
         Murphy, A.H. (1988). Skill scores based on the mean square error and
@@ -193,15 +219,20 @@ def usi(x, y):
     """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
-    return np.std(x) * np.sqrt(1.0 - r(x, y) ** 2) / np.mean(x)
+    return np.sqrt(_regression_residual_var(x, y)) / np.mean(x)
 
 
 def mse_decomposition(x, y):
     """Split the mean square error into its three additive components.
 
     :math:`MSE = \\mathrm{bias}^2
-                 + (\\sigma_B - \\sigma_A)^2
-                 + 2\\,\\sigma_A\\sigma_B\\,(1 - R)`
+                 + (\\sigma_B - R\\,\\sigma_A)^2
+                 + \\sigma_A^2\\,(1 - R^2)`
+
+    This is the decomposition of Murphy (1988): unconditional bias,
+    conditional bias and the residual that no affine correction of the model
+    can remove. The last term is what :func:`usi` measures, so
+    ``decorrelation == (usi * mean(x)) ** 2``.
 
     Args:
         x (array): x values, usually observations.
@@ -209,8 +240,9 @@ def mse_decomposition(x, y):
 
     Returns:
         dict with keys ``bias2`` (systematic offset), ``amplitude``
-        (mismatch in variability) and ``decorrelation`` (the unexplained
-        remainder), plus ``mse`` and the share each term carries.
+        (mismatch in variability once the correlation is accounted for) and
+        ``decorrelation`` (the unexplained remainder), plus ``mse`` and the
+        share each term carries.
 
     The identity is exact, so the three terms sum to the MSE to within
     floating-point error. Which one dominates is what tells you where to look:
@@ -225,11 +257,12 @@ def mse_decomposition(x, y):
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     sa, sb = np.std(x), np.std(y)
-    rr = r(x, y)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        rr = r(x, y)  # NaN for a constant model, without the numpy warning
     terms = {
         "bias2": bias(x, y) ** 2,
-        "amplitude": (sb - sa) ** 2,
-        "decorrelation": 2.0 * sa * sb * (1.0 - rr),
+        "amplitude": (sb - rr * sa) ** 2,
+        "decorrelation": _regression_residual_var(x, y),
     }
     total = sum(terms.values())
     terms["mse"] = float(np.mean((y - x) ** 2))

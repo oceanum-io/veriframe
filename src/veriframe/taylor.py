@@ -33,6 +33,7 @@ __author__ = "Yannick Copin <yannick.copin@laposte.net>"
 
 import numpy as np
 import matplotlib.pyplot as plt
+from pandas.api.types import is_numeric_dtype
 import logging
 import os
 import warnings
@@ -182,6 +183,17 @@ SAMPLE_COLORS = ["#c9512f", "#6a4c93", "#2f8f5b", "#c98a1e", "#a05a3a",
                  "#2a7ea8"]
 
 
+def _sample_colors(n):
+    """One distinct colour per sample.
+
+    :data:`SAMPLE_COLORS` while they last; beyond that, ``tab20`` rather than
+    cycling, so two models never share a colour in a calibration sweep.
+    """
+    if n <= len(SAMPLE_COLORS):
+        return SAMPLE_COLORS[:n]
+    return [plt.cm.tab20(i % 20) for i in range(n)]
+
+
 def df2taylor(
     df,
     obslabel="obs",
@@ -210,15 +222,16 @@ def df2taylor(
           figure rather than on pyplot's current one.
         - ``label`` (str): legend label for the reference point.
         - ``colors`` (list): one colour per model, defaulting to
-          :data:`SAMPLE_COLORS` in order.
+          :data:`SAMPLE_COLORS` in order (``tab20`` beyond six models).
         - ``maxstd`` (float): radial limit. Defaults to comfortably enclosing
           the reference and every model, so no sample falls off the edge.
         - ``contour_fmt`` (str): format for the centred-RMS contour labels.
         - ``units`` (str): appended to the axis label, e.g. ``"m"``.
-        - ``legend_kw`` (dict): passed to ``fig.legend``. The low-standard-
-          deviation, low-correlation corner of a Taylor diagram is empty for
-          any usable model, so ``loc="upper left"`` usually sits the legend
-          inside otherwise wasted space.
+        - ``legend_kw`` (dict): passed to the diagram's ``legend``. By
+          default it sits in the upper left: the high-standard-deviation,
+          low-correlation region of a Taylor diagram is empty for any usable
+          model, whereas the upper-right corner is where the "Correlation"
+          axis label lives, so a legend there collides with it.
 
     Returns:
         The :class:`TaylorDiagram`, or None if the reference is degenerate.
@@ -230,7 +243,11 @@ def df2taylor(
     """
     refstd = df[obslabel].std(ddof=1)  # Reference standard deviation
     if not mod_cols:
-        mod_cols = [c for c in df.columns if c != obslabel]
+        mod_cols = [
+            c for c in df.columns
+            if c not in (obslabel, "site", "lon", "lat")
+            and is_numeric_dtype(df[c])
+        ]
     if not mod_labels:
         mod_labels = mod_cols
     mapping = dict(zip(mod_cols, mod_labels))
@@ -252,13 +269,15 @@ def df2taylor(
         maxstd = 1.15 * max([refstd] + [s for s in stds if np.isfinite(s)])
     negative = any(c < 0 for c in corrs if np.isfinite(c))
 
-    if fig is None:
-        fig = plt.figure()
-    if dia is None:
+    if dia is not None:
+        fig = dia._ax.figure
+    else:
+        if fig is None:
+            fig = plt.figure()
         dia = TaylorDiagram(refstd, maxstd, fig=fig, label=label,
                             negative=negative, **kwargs)
     if colors is None:
-        colors = [SAMPLE_COLORS[i % len(SAMPLE_COLORS)] for i in range(len(cols))]
+        colors = _sample_colors(len(cols))
 
     for i, col in enumerate(cols):
         if np.isnan(stds[i]):
@@ -267,8 +286,8 @@ def df2taylor(
                        c=colors[i], mec="white", mew=0.8,
                        label="%s" % (mapping.get(col, col)))
 
-    # Centred RMS difference contours. Labelled, and named on the axis so the
-    # grey rings are not left for the reader to guess at.
+    # Centred RMS difference contours. Labelled, and named in the legend so
+    # the grey rings are not left for the reader to guess at.
     contours = dia.add_contours(colors="0.5", linewidths=0.8)
     dia.ax.clabel(contours, inline=1, fontsize=8, fmt=contour_fmt)
     unit = f" ({units})" if units else ""
@@ -276,19 +295,21 @@ def df2taylor(
     dia._ax.axis["top"].label.set_text("Correlation")
     # Name the grey rings in the legend rather than as figure text: an
     # axisartist FloatingSubplot does not report figure-level text to a tight
-    # bounding box, so a caption placed there is silently cropped away.
+    # bounding box, so a caption placed there is silently cropped away. Kept
+    # short so the legend still fits in the empty corner outside the arc.
     handles = list(dia.samplePoints) + [
-        plt.Line2D([], [], color="0.5", lw=0.8,
-                   label=f"Centred RMS difference{unit}")
+        plt.Line2D([], [], color="0.5", lw=0.8, label=f"Centred RMSD{unit}")
     ]
 
-    # Draw on the figure we were given. plt.legend/savefig act on pyplot's
-    # *current* figure, which in a batch build is whichever was made last.
+    # Draw on the diagram's own axes and figure. plt.legend/savefig act on
+    # pyplot's *current* figure and axes, which in a batch build or a
+    # multi-panel figure is not necessarily this one; fig.legend would anchor
+    # the legend to the whole figure rather than to this subplot.
     if legend:
-        opts = dict(numpoints=1, prop=dict(size="small"),
-                    loc="upper right", frameon=False)
+        opts = {"numpoints": 1, "prop": {"size": "small"}, "loc": "upper left",
+                "frameon": True, "framealpha": 0.85, "edgecolor": "none"}
         opts.update(legend_kw or {})
-        fig.legend(handles, [h.get_label() for h in handles], **opts)
+        dia._ax.legend(handles, [h.get_label() for h in handles], **opts)
     if plotdir:
         if not os.path.isdir(plotdir):
             os.makedirs(plotdir)

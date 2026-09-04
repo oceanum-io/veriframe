@@ -45,8 +45,6 @@ def test_usi_is_blind_to_offset_and_gain(data):
     perfectly correlated but mis-scaled has real skill in timing and none in
     amplitude, and USI is the index that says so.
     """
-    import numpy as np
-
     obs = data["hs_obs"]
     for alpha, beta in [(1.0, 0.0), (1.0, 0.5), (1.3, 0.0), (0.7, -0.2)]:
         df = data.assign(model=alpha * data["hs_hds"] + beta)
@@ -62,7 +60,7 @@ def test_usi_is_blind_to_offset_and_gain(data):
 
 
 def test_mse_decomposition_is_exact(data):
-    """The three terms must sum to the MSE."""
+    """The three terms must sum to the MSE, and USI must be the last one."""
     import numpy as np
 
     vf = VeriFrame(data, ref_col="hs_obs", verify_col="hs_hds")
@@ -71,3 +69,27 @@ def test_mse_decomposition_is_exact(data):
     assert total == pytest.approx(d["mse"], rel=1e-12)
     assert sum(d[f"{k}_share"] for k in
                ("bias2", "amplitude", "decorrelation")) == pytest.approx(1.0)
+    assert (vf.usi() * np.mean(data["hs_obs"])) ** 2 == pytest.approx(
+        d["decorrelation"], rel=1e-12
+    )
+
+
+def test_usi_never_exceeds_si(data):
+    """SI^2 = USI^2 + amplitude term, so USI <= SI for any model."""
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    obs = data["hs_obs"]
+    for model in (data["hs_hds"], 0.5 * obs, 2.0 * obs + 1.0,
+                  obs + rng.normal(0, 0.5, len(obs))):
+        vf = VeriFrame(data.assign(model=model), ref_col="hs_obs",
+                       verify_col="model")
+        assert vf.usi() <= vf.si() + 1e-12
+
+
+def test_usi_is_nan_for_constant_model(data):
+    import numpy as np
+
+    vf = VeriFrame(data.assign(model=2.0), ref_col="hs_obs", verify_col="model")
+    assert np.isnan(vf.usi())
+    assert np.isnan(vf.mse_decomposition()["decorrelation"])

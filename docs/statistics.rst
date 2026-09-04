@@ -50,27 +50,31 @@ Why both
 --------
 
 ``SI`` removes the offset but not a gain error. Its square is the error
-variance, which decomposes exactly:
+variance, which decomposes exactly (Murphy, 1988):
 
 .. math::
 
-   \operatorname{var}(B - A) = \underbrace{(\sigma_B - \sigma_A)^2}_{\text{amplitude}}
-                             + \underbrace{2\,\sigma_A\sigma_B\,(1 - R)}_{\text{decorrelation}}
+   \operatorname{var}(B - A) = \underbrace{(\sigma_B - R\,\sigma_A)^2}_{\text{amplitude}}
+                             + \underbrace{\sigma_A^2\,(1 - R^2)}_{\text{decorrelation}}
 
-Only the second term is scatter in the everyday sense. A model that reproduces
-every event in phase but swings 25% too hard has no random error at all and
-still scores a large ``SI``.
+The first term is the amplitude error left once the model's correlation is
+taken into account: the spread that would minimise the error is
+:math:`R\,\sigma_A`, not :math:`\sigma_A`. Only the second term is scatter
+in the everyday sense. A model that reproduces every event in phase but swings
+25% too hard has no random error at all and still scores a large ``SI``.
 
-``USI`` contains only the decorrelation part. It is invariant under any affine
-transform of the model, :math:`B \rightarrow \alpha B + \beta`, so neither a
-bias nor a gain error can move it:
+``USI`` is exactly the decorrelation part, :math:`USI^2\,\overline{A}^2 =
+\sigma_A^2\,(1 - R^2)`. It is invariant under any affine transform of the
+model, :math:`B \rightarrow \alpha B + \beta`, so neither a bias nor a gain
+error can move it. The test data shipped with the package, with the model
+scaled up by 26%:
 
 .. code-block:: python
 
    >>> vf.si(), vf.usi()
-   (0.166, 0.123)          # SI inflated by a 26% over-swing in the model
+   (0.153, 0.114)          # SI inflated by the over-swing; USI unchanged
    >>> vf.mse_decomposition()["amplitude_share"]
-   0.284                   # 28% of the error variance is amplitude, not scatter
+   0.086                   # this part of the error variance is amplitude, not scatter
 
 Read them together:
 
@@ -80,12 +84,14 @@ Read them together:
 low                  low                 good
 high                 low                 mis-scaled: gain error, not noise
 high                 high                genuinely noisy, or timing errors
-low                  high                not possible -- ``USI`` bounds ``SI``
-                                         from below only up to the amplitude term
+low                  high                not possible -- ``USI`` never exceeds
+                                         ``SI``; they are equal only when
+                                         :math:`\sigma_B = R\,\sigma_A`
 ===================  ==================  =========================================
 
 ``USI`` is built on the Pearson correlation and so applies to linear variables
-only; there is deliberately no ``circular`` argument.
+only; there is deliberately no ``circular`` argument. It is NaN for a constant
+model, where the correlation is undefined.
 
 
 MSE decomposition
@@ -96,20 +102,21 @@ directly:
 
 .. math::
 
-   MSE = \mathrm{bias}^2 + (\sigma_B - \sigma_A)^2
-         + 2\,\sigma_A\sigma_B\,(1 - R)
+   MSE = \mathrm{bias}^2 + (\sigma_B - R\,\sigma_A)^2
+         + \sigma_A^2\,(1 - R^2)
 
 .. code-block:: python
 
    >>> d = vf.mse_decomposition()
    >>> {k: round(v, 3) for k, v in d.items() if k.endswith("share")}
-   {'bias2_share': 0.113, 'amplitude_share': 0.011, 'decorrelation_share': 0.876}
+   {'bias2_share': 0.113, 'amplitude_share': 0.001, 'decorrelation_share': 0.885}
 
 Which term dominates is what says where to look: ``bias2`` at a mean offset,
 ``amplitude`` at a gain error such as a dissipation term scaling wrongly with
 the magnitude of the signal, ``decorrelation`` at timing or forcing.
 
-The identity is exact, so the terms sum to the MSE to within floating point.
+The identity is exact, so the terms sum to the MSE to within floating point,
+and ``decorrelation`` equals :math:`(USI\,\overline{A})^2` by construction.
 
 
 References

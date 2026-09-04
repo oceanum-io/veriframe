@@ -1397,7 +1397,7 @@ class VeriFrameMulti(VeriFrame):
             fig=plt.gcf(),
             obslabel=self.ref_col,
             mod_cols=self.verify_cols,
-            verify_labels=self.verify_labels,
+            mod_labels=self.verify_labels,
             rect="%i%i%i" % (nr, nc, 6),
             colors=self.plot_colors,
         )
