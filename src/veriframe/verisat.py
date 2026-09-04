@@ -131,13 +131,26 @@ class VeriSat(BaseModel):
         if df is None:
             logger.warning(f"No data found for query: {query}")
             return df
+        # Datamesh returns the altimeter archive as a time-indexed Dataset with
+        # latitude/longitude as coordinates; older versions returned a DataFrame with
+        # a time column. Normalise both to a DataFrame indexed by time.
         if isinstance(df, xr.Dataset):
-            df = df.to_pandas()
+            if df.sizes.get("time", 0) == 0:
+                logger.warning(f"No data found for query: {query}")
+                return None
+            df = df.to_dataframe()
+        if "time" in df.columns:
+            df = df.set_index("time")
+        df.index.name = "time"
+        df = df.sort_index()
         # Ensure the longitude is in the range -180, 180
-        df.loc[df.longitude > 180, 'longitude'] -= 360
+        df.loc[df.longitude > 180, "longitude"] -= 360
         # Keep only the good data
         df = df.loc[df.swh_ku_quality_control == self.qc_level]
-        return df.set_index("time").sort_index()
+        if df.empty:
+            logger.warning(f"No good-quality data found for query: {query}")
+            return None
+        return df
 
     def set_offshore_mask(self, df: pd.DataFrame) -> pd.DataFrame:
         """Set the offshore mask for the dataframe."""
